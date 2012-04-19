@@ -1,0 +1,14 @@
+import redis, sys, json, time, classify
+
+if(len(sys.argv) != 2):
+	print 'Process takes exactly one argument'
+	sys.exit()
+else:
+	text = sys.argv[1]
+	svm = classify.SVM('data/training-samples.npy','data/training-classes.npy','data/training-vocabulary.npy')
+
+sentiment = {0: 'negative', 2: 'neutral', 4: 'positive'}
+score = svm.classify(text)
+
+print json.dumps({'sentiment' : sentiment[score]})
+
