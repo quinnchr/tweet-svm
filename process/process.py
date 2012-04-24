@@ -1,19 +1,14 @@
-import redis, sys, json, time, classify
+import redis, json, time, classify
 
-if(len(sys.argv) != 2):
-	print 'Process takes exactly one argument'
-	sys.exit()
-else:
-	keyword = sys.argv[1]
-	queue = 'queue:' + keyword
-	tweets = 'tweets:' + keyword
-	ids = 'ids:' + keyword
-	print 'Processing ' + keyword
-	svm = classify.SVM('data/training-samples.npy','data/training-classes.npy','data/training-vocabulary.npy')
+queue = 'server:queue'
+
+print 'Processing ' + keyword
+svm = classify.SVM('data/t2-samples.npy','data/t2-classes.npy','data/t2-vocabulary.npy')
+print 'SVM Initialized';
 
 db = redis.StrictRedis(host='localhost', port=6379, db=0)
 sentiment = {0: 'negative', 2: 'neutral', 4: 'positive'}
-sentiment_key = {0: keyword + ':negative', 2: keyword + ':neutral', 4: keyword + ':positive'}
+sentiment_key = {0: 'negative:' + keyword, 2: 'neutral:' + keyword, 4: 'positive:' + keyword}
 
 while(True):
 	tweet = db.brpop(queue)[1]
@@ -21,6 +16,9 @@ while(True):
 	tweet_text = tweet[u'text'].encode('ascii','ignore')
 	tweet_id = tweet[u'id']
 	tweet_time = int(time.mktime(time.strptime(tweet[u'created_at'],'%a %b %d %H:%M:%S +0000 %Y')) * 1000)
+	keyword = tweet[u'keyword']
+	tweets = 'tweets:' + keyword
+	ids = 'ids:' + keyword
 	score = svm.classify(tweet_text)
 	print 'Classified: ' + sentiment[score]
 	tweet[u'sentiment'] = sentiment[score]

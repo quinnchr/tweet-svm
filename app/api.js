@@ -1,7 +1,3 @@
-var redis = require("redis"),
-	db = redis.createClient(),
-	client = redis.createClient();
-
 var http = require('http');
 var exec = require('child_process').exec;
 var querystring = require('querystring');

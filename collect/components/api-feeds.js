@@ -77,7 +77,7 @@ exports.twitterFeed = function(){
 
 		// establish connection to Twitter API
 		// store in {servs} obj
-		twitter = oa.post(
+		this.twitter = oa.post(
 			STREAM_API_URI+"?"+method+"="+keywords.join(','),
 			this.params.access_token,
 			this.params.access_token_secret
@@ -87,7 +87,7 @@ exports.twitterFeed = function(){
 		var message = '';
 
 		// Add listener to Twitter connection--call to .onTweet() callback in this block
-		twitter.addListener('response', function (response) {
+		this.twitter.addListener('response', function (response) {
 			response.setEncoding('utf8');
 			response.addListener("data", function (chunk) {
 				message += chunk;
@@ -110,6 +110,6 @@ exports.twitterFeed = function(){
 		    });
 
 		});
-		twitter.end();
+		this.twitter.end();
 	}
 }
