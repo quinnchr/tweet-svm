@@ -1,0 +1,7 @@
+#container {
+	width: 800px;
+}
+
+#index .hero-unit {
+	padding-bottom: 10px;
+}

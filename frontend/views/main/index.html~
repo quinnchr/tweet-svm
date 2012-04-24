@@ -1,0 +1,31 @@
+{% extends "common/main.html" %}
+
+{% block content %}
+<div id="index">
+	<div class="hero-unit">
+		<h1>TwitterSVM</h1>
+		<p>Semantic anlysis API for small strings of text</p>
+	</div>
+	<h1>What is TwitterSVM?</h1>
+	<p>TwitterSVM is an easy to use API for performing semantic analysis on text. Simply feed the API a string of text and get back a response indicating whether it is positive, negative or neutral. TwitterSVM was trained on a corpus over over a million tweets, so tweets and short strings of text work best.</p>
+
+<pre class="prettyprint linenums">
+$> curl -d 'text=I hate Obama!' 127.0.0.1:8000
+{"sentiment" : "negative"}
+$> curl -d 'text=I love Obama!' 127.0.0.1:8000
+{"sentiment": "positive"}
+</pre>
+
+	<h1>Limitations?</h1>
+	<p>TwitterSVM is rate limited to 100 requests/hour. Need more? No problem! You can increase your rate limit by contributing back. TwitterSVM is constantly improving, we collect hand classified text to train our algorithm. You can contribute back hand classified text through our API, for every one you contribute you get ten more requests added to your rate limit for that hour, up to 1000 requests per hour.</p>
+
+<pre class="prettyprint linenums">
+$> curl -d 'text=@ppredder i hate you&sentiment=negative' 127.0.0.1:8000
+{"limit" : "260"}
+</pre>
+
+	<h1>Coming Soon...</h1>
+	<p>Need even more requests? Need to classify more than tweets? Need live social media monitoring and alerts? A paid service will soon be available, visit the <a href="/contact">contact</a> page</p>
+
+</div>
+{% endblock %}

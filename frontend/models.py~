@@ -1,0 +1,29 @@
+from django.db import models
+
+class Server(models.Model):
+    server_id = models.BigIntegerField(primary_key=True)
+    address = models.IPAddressField()
+    class Meta:
+        db_table = u'servers'
+
+class Keyword(models.Model):
+    keyword_id = models.BigIntegerField(primary_key=True)
+    server_id = models.BigIntegerField()
+    keyword = models.CharField(max_length=128)
+    class Meta:
+        db_table = u'keywords'
+
+class User(models.Model):
+    user_id = models.BigIntegerField(primary_key=True)
+    class Meta:
+        db_table = u'users'
+
+class UserKeyword(models.Model):
+    id = models.BigIntegerField(primary_key=True)
+    user = models.ForeignKey(Users)
+    keyword = models.ForeignKey(Keywords)
+    class Meta:
+        db_table = u'user_keywords'
+
+
+

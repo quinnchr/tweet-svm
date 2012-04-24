@@ -1,0 +1,4 @@
+from frontend.models import frontend
+from django.contrib import admin
+
+admin.site.register(Frontend)
