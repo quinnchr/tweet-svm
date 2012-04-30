@@ -1,20 +1,25 @@
 import tornado.ioloop
 import tornado.web
 import json, classify, redis, time, hashlib
+import pickle
+from multiprocessing import Pool
 
 class MainHandler(tornado.web.RequestHandler):
 
 	def prepare(self):
-		remaining = self.limit(self.request.remote_ip)
-		if remaining <= 0:
-			self.set_status(420)
-			self.write(json.dumps({'error' : 'rate limit'}))
+		# only rate limit if client isn't submiting data
+		if self.get_argument('sentiment', False) == False:
+			remaining = self.limit(self.request.remote_ip)
+			if remaining <= 0:
+				self.error(400, 'rate limit exceeded')
 
-	def error(self):
-		raise tornado.web.HTTPError(400)
+	def error(self,status,message):
+			self.set_status(status)
+			self.write(json.dumps({'error' : message}))
+			self.finish()
 
 	def get(self):
-		self.error()
+		self.error(400, 'method not implemented')
 
 	def post(self):
 		text = self.get_argument('text')
@@ -25,15 +30,15 @@ class MainHandler(tornado.web.RequestHandler):
 		if text != '':	
 			if user_sentiment in ('positive', 'negative', 'neutral'):
 				self.learn(user, text, user_sentiment)
-				output = json.dumps({'rate-limit-remaining' : self.limit(user)})
+				output = json.dumps({'ratelimit-remaining' : self.limit(user)})
 			elif user_sentiment == False:
-				score = svm.classify(text)
+				score = classify(text)
 				sentiment = {'sentiment' : sentiment_key[score]}
 				db.zadd('requests:'+user, time.time(), time.time())
 				self.limit(user)
 				output = json.dumps(sentiment)
 			else:
-				self.error()
+				self.error(400,'method not implemented')
 		self.write(output)
 
 	def learn(self, user, text, sentiment):
@@ -45,22 +50,38 @@ class MainHandler(tornado.web.RequestHandler):
 	
 	def limit(self, user):
 		current_time = time.time()
-		requests = len(db.zrangebyscore('requests:'+user, current_time - 3600, current_time))
-		contributions = len(db.zrangebyscore('api:'+user, current_time - 3600, current_time))
+		# delete old requests
+		db.zremrangebyscore('requests:'+user, '-inf', current_time - 3600)
+		db.zremrangebyscore('api:'+user, '-inf', current_time - 3600)
+		# look at requests in the past hour
+		requests = db.zcount('requests:'+user, current_time - 3600, '+inf')
+		contributions = db.zcount('api:'+user, current_time - 3600, '+inf')
 		remaining = min((100 + 10*contributions) - requests, 1000)
 
 		self.set_header('X-Ratelimit-Limit', 100 + 10*contributions)
 		self.set_header('X-Ratelimit-Remaining', remaining)
 
-		return remaining
+		#return remaining
+		return 99999999
 
 application = tornado.web.Application([
 	(r"/", MainHandler),
 ])
 
+def init(obj):
+	global svm
+	svm = obj
+
+def f(x):
+	global svm
+	return svm.classify(x)
+
 if __name__ == "__main__":
 	print 'Initializing Support Vector Machine...'
-	svm = classify.SVM('data/t2-samples.npy','data/t2-classes.npy','data/t2-vocabulary.npy')
+	svm = pickle.load(open('data/kernel.pickle','r'))
+	pool = Pool(processes=1,initializer=init,initargs=(svm,))
+	def classify(x):
+		return pool.apply(f,(x,)) 
 	print 'SVM Initialized'
 	db = redis.StrictRedis(host='localhost', port=6379, db=0)
 	application.listen(8000)
