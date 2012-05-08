@@ -14,6 +14,7 @@ command.on("error", function (err) {
 
 command.on("message", function (channel, message) {
 	cmd = JSON.parse(message);
+	console.log(cmd);
 	switch(cmd.action) {
 		case 'add':
 			db.sadd('server:keywords', cmd.keyword);		
@@ -48,8 +49,7 @@ subscription = function() {
 			var time = new Date(response.created_at);
 			if(response.id && response.user.lang == 'en') {
 				response.keyword = keyword;
-				//console.log('Collected: ' + count);
-				db.lpush('server:queue', JSON.stringify(response));
+				db.lpush('process:queue', JSON.stringify(response));
 				count++;
 			}
 		})

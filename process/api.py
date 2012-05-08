@@ -1,6 +1,10 @@
 import tornado.ioloop
 import tornado.web
-import json, classify, redis, time, hashlib
+import json 
+import classify
+import redis
+import time
+import hashlib
 import pickle
 from multiprocessing import Pool
 
@@ -54,15 +58,14 @@ class MainHandler(tornado.web.RequestHandler):
 		db.zremrangebyscore('requests:'+user, '-inf', current_time - 3600)
 		db.zremrangebyscore('api:'+user, '-inf', current_time - 3600)
 		# look at requests in the past hour
-		requests = db.zcount('requests:'+user, current_time - 3600, '+inf')
-		contributions = db.zcount('api:'+user, current_time - 3600, '+inf')
+		requests = db.zcard('requests:'+user)
+		contributions = db.zcard('api:'+user)
 		remaining = min((100 + 10*contributions) - requests, 1000)
 
 		self.set_header('X-Ratelimit-Limit', 100 + 10*contributions)
 		self.set_header('X-Ratelimit-Remaining', remaining)
 
-		#return remaining
-		return 99999999
+		return remaining
 
 application = tornado.web.Application([
 	(r"/", MainHandler),
@@ -78,8 +81,8 @@ def f(x):
 
 if __name__ == "__main__":
 	print 'Initializing Support Vector Machine...'
-	svm = pickle.load(open('data/kernel.pickle','r'))
-	pool = Pool(processes=1,initializer=init,initargs=(svm,))
+	svm = pickle.load(open('data/svm-reduced.pickle','r'))
+	pool = Pool(initializer=init,initargs=(svm,))
 	def classify(x):
 		return pool.apply(f,(x,)) 
 	print 'SVM Initialized'
