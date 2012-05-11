@@ -64,4 +64,6 @@ nmf = decomposition.NMF(n_components=n_topics).fit(tfidf)
 # Inverse the vectorizer vocabulary
 feature_names = vectorizer.get_feature_names()
 
-
+for topic_idx, topic in enumerate(nmf.components_):
+	print "Topic #%d:" % topic_idx
+	print " ".join([feature_names[i] for i in topic.argsort()[:-n_top_words - 1:-1]])
