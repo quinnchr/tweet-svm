@@ -88,6 +88,8 @@ for keyword, stat in read_queue(db,mongo):
 		score = len(ratio) * numpy.average(ratio)
 		stop = stat['time']
 	elif len(ratio) > 0:
+		if old_sentiment == negative:
+			score *= -1
 		db.publish('extraction:'+keyword, json.dumps({'score' : score, 'interval' : (start,stop)}))
 		print str(score) + ': ' + str(start) + ' ' + str(stop)
 		start = stat['time']
