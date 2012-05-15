@@ -1,42 +1,17 @@
-import pickle
-import csv
+from numpy import *
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.svm.sparse import LinearSVC
 
 
-class classifier:
+class SVM:
 
-	def __init__(self, load=""):
-		self.cv = CountVectorizer()
-		if load != '':
-			self.load_model(pickle.load(open(load,'r')))
-
-	def load_model(self, data):
-		self.cv = data['vocabulary']
-		self.classifier = data['classifier']
-		self.training = data['training']
-		self.classes = data['classes']
-
-	def save_model(self, path):
-		data = {
-				'vocabulary' : self.cv,
-				'classifier' : self.classifier,
-				'training'   : self.training,
-				'classes'    : self.classes
-			}
-		pickle.dump(data, open(path,'w'))
-
-	def set_data(self, path):
-		r = csv.reader(open(path,'r'))
-		r = [i for i in r]
-		t = [i[-1] for i in r]
-		c = [int(i[0]) for i in r]
-		self.classes = c
-		self.training = self.cv.fit_transform(t)
-
-	def set_classifier(self, clf):
-		clf.fit(self.training, self.classes)
-		self.classifier = clf
+	def __init__(self, training, classes, vocabulary):	
+		vocabulary = load(vocabulary)
+		self.cv = CountVectorizer(vocabulary = vocabulary.tolist())
+		self.samples = load(training).tolist()
+		self.classes = load(classes)
+		self.classifier = LinearSVC()
+		self.classifier.fit(self.samples, self.classes)
 
 	def classify(self, text):
 		features = self.cv.transform([text])

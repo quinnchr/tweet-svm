@@ -1,6 +1,6 @@
 from numpy import *
 from sklearn.feature_extraction.text import CountVectorizer
-from sklearn.svm.sparse import LinearSVC
+from sklearn.svm import LinearSVC
 
 
 class SVM:

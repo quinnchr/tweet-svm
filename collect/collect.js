@@ -48,7 +48,8 @@ subscription = function() {
 			var time = new Date(response.created_at);
 			if(response.id && response.user.lang == 'en') {
 				response.keyword = keyword;
-				db.lpush('process:queue', JSON.stringify(response));
+				data = {'time': time.getTime(), 'text': response.text, 'source': 'twitter', 'stream': 'test', 'user': 'quinnchr', 'data': response}
+				db.lpush('process:queue', JSON.stringify(data));
 				count++;
 			}
 		})
