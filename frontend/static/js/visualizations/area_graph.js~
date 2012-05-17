@@ -1,0 +1,9 @@
+var socket = io.connect('http://localhost:8080');
+
+socket.on('data', function(response) {
+	window.stats = response;
+});
+
+sentiment = new graph('#graph', window, 120);
+
+

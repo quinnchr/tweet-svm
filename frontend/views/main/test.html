@@ -1,192 +1,116 @@
 {% extends "common/main.html" %}
 
 {% block content %}
-<style>
+			<div id="overview" class="row-fluid">
+				<div class="span2 sidebar tabbable tabs-left">
+					<ul class="nav nav-tabs">
+						<li class="selected">
+							<h3>Election</h3>
+							<ul class="nav nav-list">
+								<li class="active"><a href="#">Obama</a></li>
+								<li><a href="#">Romney</a></li>
+								<li><a href="#">Paul</a></li>
+							</ul>
+						</li>
+						<li><a href="#">Apple</a></li>
+						<li><a href="#">Google</a></li>
+					</ul>
+				</div>
+				<div class="span10">
+					<h2>Obama:</h2>
+					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease">+</a><a href="#" id="periodDecrease">-</a></h4>
+					<div id="graph"></div>
+					<div id="graph2"></div>
+					<div id="slider"></div>
+				</div>
+			</div>
+{% endblock %}
 
-svg {
-	font: 10px sans-serif;
-}
+{% block scripts %}
+		<script src="http://mbostock.github.com/d3/d3.js?2.7.2"></script>
+		<script src="http://twitter.qchrzan.mouse.engauge.com/assets/socket.io/socket.io.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+		<script src="{{ STATIC_URL }}js/visualizations/graph.js"></script>
+		<script>
+			socket = io.connect('http://localhost:8080');
 
-.line {
-	fill: none;
-	stroke: #000;
-	stroke-width: 1.5px;
-}
+			socket.on('data', function(response) {
+				window.stats = response;
+			});
 
-.positive {
-	fill: #74DB82;
-	fill-opacity: .5;
-}
+			socket.on('init', function(response) {
+				now = (new Date).getTime()/1000;
+				socket.emit('interval', {start: now - sentiment.length, stop: now});
+			});
 
-.negative {
-	fill: #E83A00;
-	fill-opacity: .5;
-}
+			socket.on('interval', function(response) {
+				sentiment.redraw(response);
+				$("#period").html(display);
+			});
 
+			sentiment = new graph('#graph', window, 300);
+			period = 300;
+			display = '';
 
-.axis path, .axis line {
-	fill: none;
-	stroke: #000;
-	shape-rendering: crispEdges;
-}
+			$("#periodIncrease").click(function(){
+				changed = false
+				if(period < 1800 && changed == false) {
+					period += 300;
+					changed = true;
+				}
+				if(period >= 1800 && period < 3600 && changed == false) {
+					period += 600;
+					changed = true;
+				}
+				if(period >= 3600 && period < 86400 && changed == false) {
+					period += 3600;
+					changed = true;
+				}
+				if(period >= 86400 && changed == false) {
+					period += 86400;
+					changed = true;
+				}
+				displayPeriod();
+			});
 
-.grid line {
-	stroke: #000;
-	stroke-dasharray: 9, 5;
-	stroke-opacity: .3;
-}
+			$("#periodDecrease").click(function(){
+				changed = false;
+				if(period < 1800 && changed == false) {
+					period -= 300;
+					if(period < 300) {
+						period = 300;
+					}
+					changed = true;
+				}
+				if(period >= 1800 && period < 3600 && changed == false) {
+					period -= 600;
+					changed = true;
+				}
+				if(period >= 3600 && period < 86400 && changed == false) {
+					period -= 3600;
+					changed = true;
+				}
+				if(period >= 86400 && changed == false) {
+					period -= 86400;
+					changed = true;
+				}
+				displayPeriod();
+			});
 
-.grid path, .axis text {
-	display: none;
-}
-
-
-.stripe line {
-	stroke: none;
-}
-
-.stripe line.minor {
-	stroke-width: 1;
-	stroke: #ccc;
-	stroke-opacity: .3;
-	stroke-dasharray: 5, 5;
-}
-
-.stripe path, .stripe text {
-	display: none;
-}
-</style>
-<script src="http://mbostock.github.com/d3/d3.js?2.7.2"></script>
-<script src="http://twitter.qchrzan.mouse.engauge.com/assets/socket.io/socket.io.js"></script>
-<script>
-
-var n = 40,
-    zero = function(){return 0;},
-    data = d3.range(n).map(zero);
-
-var margin = {top: 10, right: 10, bottom: 20, left: 40},
-    width = 960 - margin.left - margin.right,
-    height = 500 - margin.top - margin.bottom;
-
-var x = d3.scale.linear()
-    .domain([1, n - 2])
-    .range([0, width]);
-
-var y = d3.scale.linear()
-    .domain([-5, 5])
-    .range([height, 0]);
-
-var line = d3.svg.line()
-    .interpolate("basis")
-    .x(function(d, i) { return x(i); })
-    .y(function(d, i) { return y(d); });
-
-var svg = d3.select("body").append("svg")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
-  .append("g")
-    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-svg.append("defs").append("clipPath")
-    .attr("id", "positive")
-  .append("rect")
-    .attr("width", width)
-    .attr("height", height/2);
-
-svg.append("defs").append("clipPath")
-    .attr("id", "negative")
-  .append("rect")
-    .attr("width", width)
-    .attr("height", height/2)
-	.attr("transform", "translate(0," + height/2 + ")");;
-
-svg.append("g")
-    .attr("class", "x axis")
-    .attr("transform", "translate(0," + height + ")")
-    .call(d3.svg.axis().scale(x).orient("bottom"));
-
-var yAxis = d3.svg.axis().scale(y).orient("left").ticks(1);
-svg.append("g")
-    .attr("class", "y axis")
-    .call(yAxis);
-
-
-
-svg.append("svg:g")
-      .attr("class", "y stripe")
-      .attr("transform", "translate(0,0)")
-      .call(yAxis.tickSubdivide(1).ticks(10).tickSize(-width));
-
-svg.append("svg:g")
-      .attr("class", "y grid")
-      .attr("transform", "translate(0,0)")
-      .call(yAxis.tickSubdivide(0).tickValues([0]).tickSize(-width));
-
-window.area = d3.svg.area()
-	.interpolate("basis")
-	.x(function(d, i) { return x(i); })
-	.y0(function(d){ return height/2 })
-	.y1(function(d, i) { return y(d); });
-
-var positive_area = svg.append("g")
-	.attr("clip-path", "url(#positive)")
-	.append("path")
-	.data([data])
-	.attr("class", "positive")
-	.attr("d", window.area);
-
-var negative_area = svg.append("g")
-	.attr("clip-path", "url(#negative)")
-	.append("path")
-	.data([data])
-	.attr("class", "negative")
-	.attr("d", window.area);
-
-
-
-
-function tick() {
-
-	// push a new data point onto the back
-	if(typeof window.stats != 'undefined') {
-		stat = window.stats.twitter;
-		val = stat.positive.rate - stat.negative.rate*2
-	} else {
-		val = 0;
-	}
-	data.push(val);
-
-	// redraw the line, and slide it to the left
-	negative_area
-		.attr("d", window.area)
-		.attr("transform", null)
-		.transition()
-		.duration(500)
-		.ease("linear")
-		.attr("transform", "translate(" + x(0) + ")");
-
-	positive_area
-		.attr("d", window.area)
-		.attr("transform", null)
-		.transition()
-		.duration(500)
-		.ease("linear")
-		.attr("transform", "translate(" + x(0) + ")")
-		.each("end", tick);
-
-	// pop the old data point off the front
-	data.shift();
-
-}
-
-var socket = io.connect('http://localhost:8080');
-tick();
-
-socket.on('data', function (response) {
-	window.stats = response;
-});
-
-
-
-</script>
+			function displayPeriod() {
+				if(period < 3600) {
+					display = parseInt(period/60) + 'm';
+				}
+				if(period >= 3600 && period < 86400) {
+					display = parseInt(period/3600) + 'h';
+				}
+				if(period >= 86400) {
+					display = parseInt(period/86400) + 'd';
+				}
+				sentiment.length = period;
+				sentiment.graph.ticker.stop();
+				now = (new Date).getTime()/1000;
+				socket.emit('interval', {start: now - period, stop: now});
+			}
+		</script>
 {% endblock %}

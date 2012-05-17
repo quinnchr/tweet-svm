@@ -20,7 +20,7 @@
 
 		<link rel="shortcut icon" href="{{ STATIC_URL }}ico/favicon.ico">
 	</head>
-	<body>
+	<body onload="prettyPrint()">
 		<div class="navbar navbar-fixed-top">
 			<div class="navbar-inner">
 				<div class="container">
@@ -38,12 +38,12 @@
 				</div>
 			</div>
 		</div>
-		<div class="container">
+		<div id="container" class="container-fluid">
 			{% block content %}{% endblock %}
 		</div>
 		<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.7.2/jquery.min.js"></script>
 		<script src="{{ STATIC_URL }}js/bootstrap.min.js"></script>
 		<script src="{{ STATIC_URL }}js/prettify.js"></script>
-		<script src="{{ STATIC_URL }}js/global.js"></script>
+		{% block scripts %}{% endblock %}
 	</body>
 </html>
