@@ -18,10 +18,30 @@
 				</div>
 				<div class="span10">
 					<h2>Obama:</h2>
-					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease">+</a><a href="#" id="periodDecrease">-</a></h4>
-					<div id="graph"></div>
-					<div id="graph2"></div>
-					<div id="slider"></div>
+					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease"><i class="icon-plus"></i></a><a href="#" id="periodDecrease"><i class="icon-minus"></i></a></h4>
+					<div id="graph_view">
+						<div id="graph"></div>
+						<div id="navigator"></div>
+					</div>
+					<div id="stats_view">
+						<h4>Rate: <span id="rate"></span> Net Sentiment: <span id="net"></span></h4>
+						<ul class="nav nav-tabs">
+							<li class="active"><a href="#">Topics</a></li>
+							<li><a href="#">Stats</a></li>
+						</ul>
+						<ol>
+							<li>barack barack obama president barack president barack obama president twitter washington american story le read clooney sexy want hell george george clooney know number reuters</li>
+							<li>marriage gay gay marriage sex sex marriage obama gay support obama gay marriage stance support gay support gay marriage interview marriage stance gay marriage stance supports evolving issue backing position carolina</li>
+							<li>president president obama albany congress president barack president barack obama today jobs list news love 2012 video let tuesday equality ohio second country visits</li>
+							<li>rt rt obama obama rt gt good love amp hahaha lol says lt elected america di old revolution man armed revolution revolution obama armed revolution obama</li>
+							<li>romney obama romney romney obama mitt mitt romney news treason poll race paul 2012 44 cookiegate says voters vs ron paul ron economy video</li>
+							<li>michelle michelle obama love say did obama say say michelle proposed say michelle barack obama say obama say michelle michelle proposed proposed did barack did barack obama lady wants self wanna proposed don wanna obama self</li>
+							<li>vote vote obama going nc black democrats percent election primary inmate 2012 west 40 dem need good party west virginia votes paul</li>
+							<li>campaign obama campaign ad new edwards julia ads donor john edwards john edwards donor life warned says million clooney life julia washington launched told</li>
+							<li>tcot gop p2 tlot teaparty tcot tlot tcot gop sgp dems obamas tcot p2 p2 tcot teaparty tcot congress video gop teaparty ows ocra amp tcot teaparty</li>
+							<li>like just amp obama just dog lol like obama think just like ate know obama ate got did right said good obama amp don time</li>					
+						</ol>
+					</div>
 				</div>
 			</div>
 {% endblock %}
@@ -35,7 +55,12 @@
 			socket = io.connect('http://localhost:8080');
 
 			socket.on('data', function(response) {
-				window.stats = response;
+				window.graph1.stats = response;
+				window.nav.stats = response;
+				var rate = response.twitter.positive.rate - response.twitter.negative.rate;
+				net += rate * sentiment.graph.duration / 1000;
+				$("#net").html(net.toFixed(2));
+				$("#rate").html(rate.toFixed(2));
 			});
 
 			socket.on('init', function(response) {
@@ -44,13 +69,23 @@
 			});
 
 			socket.on('interval', function(response) {
-				sentiment.redraw(response);
+				sentiment.redraw(response.graph);
+				//navigator.redraw(response.navigator);
 				$("#period").html(display);
+				net = 0;
+				if(typeof window.graph1.data != 'undefined') {
+					$.each(window.graph1.data,function(index, value){
+						net += sentiment.graph.duration * value / 1000
+					});
+				}
 			});
-
-			sentiment = new graph('#graph', window, 300);
+			window.graph1 = {};
+			window.nav = {};
+			sentiment = new graph('#graph', window.graph1, 300);
+			navigator = new graph('#navigator', window.nav, 3000);
 			period = 300;
-			display = '';
+			net = 0;
+			display = $('#period').html();
 
 			$("#periodIncrease").click(function(){
 				changed = false
@@ -82,11 +117,11 @@
 					}
 					changed = true;
 				}
-				if(period >= 1800 && period < 3600 && changed == false) {
+				if(period >= 1800 && period <= 3600 && changed == false) {
 					period -= 600;
 					changed = true;
 				}
-				if(period >= 3600 && period < 86400 && changed == false) {
+				if(period > 3600 && period < 86400 && changed == false) {
 					period -= 3600;
 					changed = true;
 				}
@@ -97,7 +132,7 @@
 				displayPeriod();
 			});
 
-			function displayPeriod() {
+			function displayPeriod() {	
 				if(period < 3600) {
 					display = parseInt(period/60) + 'm';
 				}

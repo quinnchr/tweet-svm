@@ -1,7 +1,7 @@
 function graph(selector, obj, length) {
 
 	this.length = length;
-
+	this.obj = obj;
 	this.graph = new area(selector, obj, length);
 
 	this.redraw = function(data) {
@@ -10,18 +10,25 @@ function graph(selector, obj, length) {
 		}
 		$(selector + ' > svg').remove();
 		this.graph.ticker.stop();
-		this.graph = new area(selector, obj, this.length);
+		this.graph = new area(selector, this.obj, this.length);
 	}
 
 }
 
 function area(selector, obj, length) {
-
 	this.n = length;
 	this.duration = 1000;
 	this.now = new Date();
-	this.obj = obj;	
+	this.obj = obj;
+	this.limit = 3600;
+	this.scale = false;
 
+	if(this.n > this.limit) {
+		this.duration = this.n/this.limit * 1000;
+		this.n = this.limit;
+		this.scale = true;
+	}
+	
 	if(typeof this.obj.data == 'undefined') {
 		this.obj.data = d3.range(this.n).map(function(){ return 0;});
 	} else {
@@ -33,7 +40,6 @@ function area(selector, obj, length) {
 			this.obj.data = this.obj.data.slice(-1*this.n);
 		}
 	}
-
 	var margin = {top: 10, right: 0, bottom: 20, left: -1},
 		width = parseInt(d3.select(selector).style('width')) - margin.left - margin.right,
 		height = parseInt(d3.select(selector).style('height')) - margin.top - margin.bottom;
@@ -107,14 +113,14 @@ function area(selector, obj, length) {
 	this.positive_area = this.svg.append("g")
 		.attr("clip-path", "url(#positive)")
 		.append("path")
-		.data([data])
+		.data([this.obj.data])
 		.attr("class", "positive")
 		.attr("d", this.area);
 
 	this.negative_area = this.svg.append("g")
 		.attr("clip-path", "url(#negative)")
 		.append("path")
-		.data([data])
+		.data([this.obj.data])
 		.attr("class", "negative")
 		.attr("d", this.area);
 
@@ -152,7 +158,7 @@ function tick(parent) {
 			.attr("d", parent.area)
 			.attr("transform", null)
 			.transition()
-			.duration(500)
+			.duration(parent.duration)
 			.ease("linear")
 			.attr("transform", "translate(" + x(now - (parent.n - 1) * parent.duration) + ")");
 
@@ -160,7 +166,7 @@ function tick(parent) {
 			.attr("d", parent.area)
 			.attr("transform", null)
 			.transition()
-			.duration(500)
+			.duration(parent.duration)
 			.ease("linear")
 			.attr("transform", "translate(" + x(now - (parent.n - 1) * parent.duration) + ")")
 			.each("end", selfTick);

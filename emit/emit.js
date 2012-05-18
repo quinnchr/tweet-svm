@@ -31,24 +31,30 @@ io.sockets.on('connection', function (socket) {
 	db.subscribe('server:emit');
 
 	socket.on('interval', function (message) {
-		stop = parseInt(message.stop);
-		start = parseInt(message.start);
+		stop = message.stop;
+		start = message.start;
 		length = stop - start;
 		mongo.open(function(err, db) {
 			if(!err) {
 				mongo.collection('quinnchr.analytics', function(err, collection) {
-					collection.count(function(err, count) {
-						current = parseInt((new Date()).getTime()/1000);
-						index = count - (current - start);
-						collection.find({},{sort:[['_id',1]],skip:index,limit:length}).toArray(function(err, items) {
-							var data = [];
-							for(var i = items.length - 1; i > 0; i--) {
-								data[i] = items[i].twitter.positive.rate - items[i].twitter.negative.rate;
-							}
-							socket.emit('interval', data);
-							mongo.close();
-						});
+					// take a sample
+					samples = 3600;
+					factor = samples/length;
+					collection.find({'sample' : {'$lte' : factor}, 'time' : {'$gte' : stop - 10*length , '$lte' : stop}},{'sort':[['time',1]],'limit':length}).toArray(function(err, items) {
+						var data = [];
+						var net = 0;
+						for(var i = items.length - 1; i > 0; i--) {
+							data[i] = items[i].twitter.positive.rate - items[i].twitter.negative.rate;
+							net += data[i];
+						}
+						response = {};
+						response.graph = data.slice(-length);
+						response.navigator = data;
+						response.net = net;
+						socket.emit('interval', response);
+						mongo.close();
 					});
+					
 				});
 			};
 		});		

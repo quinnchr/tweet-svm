@@ -3,6 +3,7 @@ import json
 import time
 import numpy
 import sys
+import random
 from pymongo import Connection
 
 class Analyze:
@@ -26,6 +27,8 @@ class Analyze:
 			self.get_count()
 			for source in self.sources:
 				stats[source] = {}
+				stats['time'] = time.time()
+				stats['sample'] = random.uniform(0,1)
 				prefix = self.prefix + ':' + source
 				for key in ('ids','positive','negative'):
 					stats[source][key] = {
