@@ -67,6 +67,11 @@
 	padding-bottom: 10px;
 }
 
+#login {
+	margin: 100px auto;
+	width: 310px;
+}
+
 /* Overview Page Styles */
 
 #overview {
@@ -89,7 +94,7 @@
 	margin: 0 0 0 0;
 }
 
-#navigator .grid {
+#navigator .stripe {
 	display: none;
 }
 

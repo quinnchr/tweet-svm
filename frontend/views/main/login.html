@@ -1,0 +1,17 @@
+{% extends "common/main.html" %}
+
+{% block content %}
+<div id="index">
+	<div id="login">
+		{% if error %}
+		<div class="alert alert-error">{{ error }}</div>
+		{% endif %}
+		<form method="post" action="" class="well form-inline">
+			{% csrf_token %}
+			<input type="text" name="username" id="username" placeholder="Username" class="input-small" />
+			<input type="password" name="password" id="password" placeholder="Password" class="input-small" />
+			<input type="submit" value="Login" class="btn" />
+		</form>	
+	</div>
+</div>
+{% endblock %}

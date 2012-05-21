@@ -1,31 +1,151 @@
 {% extends "common/main.html" %}
 
 {% block content %}
-<div id="index">
-	<div class="hero-unit">
-		<h1>TwitterSVM</h1>
-		<p>Semantic anlysis API for small strings of text</p>
-	</div>
-	<h1>What is TwitterSVM?</h1>
-	<p>TwitterSVM is an easy to use API for performing semantic analysis on text. Simply feed the API a string of text and get back a response indicating whether it is positive, negative or neutral. TwitterSVM was trained on a corpus over over a million tweets, so tweets and short strings of text work best.</p>
+			<div id="overview" class="row-fluid">
+				<div class="span2 sidebar tabbable tabs-left">
+					<ul class="nav nav-tabs">
+						<li class="selected">
+							<h3>Election</h3>
+							<ul class="nav nav-list">
+								{% for source in streams %}
+									<li><a href="#">{{ stream.name }}</a></li>
+								{% endfor %}
+							</ul>
+						</li>
+						<li><a href="#">Apple</a></li>
+						<li><a href="#">Google</a></li>
+					</ul>
+				</div>
+				<div class="span10">
+					<h2>Obama:</h2>
+					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease"><i class="icon-plus"></i></a><a href="#" id="periodDecrease"><i class="icon-minus"></i></a></h4>
+					<div id="graph_view">
+						<div id="graph"></div>
+						<div id="navigator"></div>
+					</div>
+					<div id="stats_view">
+						<h4>Rate: <span id="rate"></span> Net Sentiment: <span id="net"></span></h4>
+						<ul class="nav nav-tabs">
+							<li class="active"><a href="#">Topics</a></li>
+							<li><a href="#">Stats</a></li>
+						</ul>
+						<ol>
+							<li>barack barack obama president barack president barack obama president twitter washington american story le read clooney sexy want hell george george clooney know number reuters</li>
+							<li>marriage gay gay marriage sex sex marriage obama gay support obama gay marriage stance support gay support gay marriage interview marriage stance gay marriage stance supports evolving issue backing position carolina</li>
+							<li>president president obama albany congress president barack president barack obama today jobs list news love 2012 video let tuesday equality ohio second country visits</li>
+							<li>rt rt obama obama rt gt good love amp hahaha lol says lt elected america di old revolution man armed revolution revolution obama armed revolution obama</li>
+							<li>romney obama romney romney obama mitt mitt romney news treason poll race paul 2012 44 cookiegate says voters vs ron paul ron economy video</li>
+							<li>michelle michelle obama love say did obama say say michelle proposed say michelle barack obama say obama say michelle michelle proposed proposed did barack did barack obama lady wants self wanna proposed don wanna obama self</li>
+							<li>vote vote obama going nc black democrats percent election primary inmate 2012 west 40 dem need good party west virginia votes paul</li>
+							<li>campaign obama campaign ad new edwards julia ads donor john edwards john edwards donor life warned says million clooney life julia washington launched told</li>
+							<li>tcot gop p2 tlot teaparty tcot tlot tcot gop sgp dems obamas tcot p2 p2 tcot teaparty tcot congress video gop teaparty ows ocra amp tcot teaparty</li>
+							<li>like just amp obama just dog lol like obama think just like ate know obama ate got did right said good obama amp don time</li>					
+						</ol>
+					</div>
+				</div>
+			</div>
+{% endblock %}
 
-<pre class="prettyprint linenums">
-$> curl -d 'text=I hate Obama!' 127.0.0.1:8000
-{"sentiment" : "negative"}
-$> curl -d 'text=I love Obama!' 127.0.0.1:8000
-{"sentiment": "positive"}
-</pre>
+{% block scripts %}
+		<script src="http://mbostock.github.com/d3/d3.js?2.7.2"></script>
+		<script src="http://twitter.qchrzan.mouse.engauge.com/assets/socket.io/socket.io.js"></script>
+		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+		<script src="{{ STATIC_URL }}js/visualizations/graph.js"></script>
+		<script>
+			socket = io.connect('http://localhost:8080');
 
-	<h1>Limitations?</h1>
-	<p>TwitterSVM is rate limited to 100 requests/hour. Need more? No problem! You can increase your rate limit by contributing back. TwitterSVM is constantly improving, we collect hand classified text to train our algorithm. You can contribute back hand classified text through our API, for every one you contribute you get ten more requests added to your rate limit for that hour, up to 1000 requests per hour.</p>
+			socket.on('data', function(response) {
+				window.graph1.stats = response;
+				window.nav.stats = response;
+				var rate = response.twitter.positive.rate - response.twitter.negative.rate;
+				net += rate * sentiment.graph.duration / 1000;
+				$("#net").html(net.toFixed(2));
+				$("#rate").html(rate.toFixed(2));
+			});
 
-<pre class="prettyprint linenums">
-$> curl -d 'text=@ppredder i hate you&sentiment=negative' 127.0.0.1:8000
-{"limit" : "260"}
-</pre>
+			socket.on('init', function(response) {
+				now = (new Date).getTime()/1000;
+				socket.emit('interval', {start: now - sentiment.length, stop: now});
+			});
 
-	<h1>Coming Soon...</h1>
-	<p>Need even more requests? Need to classify more than tweets? Need live social media monitoring and alerts? A paid service will soon be available, visit the <a href="/contact">contact</a> page to signup for news about our service, and we'll let you know as soon as it's available.</p>
+			socket.on('interval', function(response) {
+				sentiment.redraw(response.graph);
+				//navigator.redraw(response.navigator);
+				$("#period").html(display);
+				net = 0;
+				if(typeof window.graph1.data != 'undefined') {
+					$.each(window.graph1.data,function(index, value){
+						net += sentiment.graph.duration * value / 1000
+					});
+				}
+			});
+			window.graph1 = {};
+			window.nav = {};
+			sentiment = new graph('#graph', window.graph1, 300);
+			navigator = new graph('#navigator', window.nav, 3000);
+			period = 300;
+			net = 0;
+			display = $('#period').html();
 
-</div>
+			$("#periodIncrease").click(function(){
+				changed = false
+				if(period < 1800 && changed == false) {
+					period += 300;
+					changed = true;
+				}
+				if(period >= 1800 && period < 3600 && changed == false) {
+					period += 600;
+					changed = true;
+				}
+				if(period >= 3600 && period < 86400 && changed == false) {
+					period += 3600;
+					changed = true;
+				}
+				if(period >= 86400 && changed == false) {
+					period += 86400;
+					changed = true;
+				}
+				displayPeriod();
+			});
+
+			$("#periodDecrease").click(function(){
+				changed = false;
+				if(period < 1800 && changed == false) {
+					period -= 300;
+					if(period < 300) {
+						period = 300;
+					}
+					changed = true;
+				}
+				if(period >= 1800 && period <= 3600 && changed == false) {
+					period -= 600;
+					changed = true;
+				}
+				if(period > 3600 && period < 86400 && changed == false) {
+					period -= 3600;
+					changed = true;
+				}
+				if(period >= 86400 && changed == false) {
+					period -= 86400;
+					changed = true;
+				}
+				displayPeriod();
+			});
+
+			function displayPeriod() {	
+				if(period < 3600) {
+					display = parseInt(period/60) + 'm';
+				}
+				if(period >= 3600 && period < 86400) {
+					display = parseInt(period/3600) + 'h';
+				}
+				if(period >= 86400) {
+					display = parseInt(period/86400) + 'd';
+				}
+				sentiment.length = period;
+				sentiment.graph.ticker.stop();
+				now = (new Date).getTime()/1000;
+				socket.emit('interval', {start: now - period, stop: now});
+			}
+		</script>
 {% endblock %}

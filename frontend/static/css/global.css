@@ -67,6 +67,11 @@
 	padding-bottom: 10px;
 }
 
+#login {
+	margin: 100px auto;
+	width: 301px;
+}
+
 /* Overview Page Styles */
 
 #overview {

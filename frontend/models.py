@@ -1,29 +1,29 @@
 from django.db import models
+from django.contrib.auth.models import User, UserManager
 
-class Servers(models.Model):
-    server_id = models.BigIntegerField(primary_key=True)
-    address = models.IPAddressField()
-    class Meta:
-        db_table = u'servers'
+class Server(models.Model):
+	address = models.IPAddressField()
+	class Meta:
+		db_table = u'servers'
 
-class Keywords(models.Model):
-    keyword_id = models.BigIntegerField(primary_key=True)
-    server_id = models.BigIntegerField()
-    keyword = models.CharField(max_length=128)
-    class Meta:
-        db_table = u'keywords'
+class ApiUser(User):
+	server = models.ForeignKey(Server)
+	api_key = models.CharField(max_length=128)
+	api_secret = models.CharField(max_length=128)
+	objects = UserManager()
+	class Meta:
+		db_table = u'api_users'
 
-class Users(models.Model):
-    user_id = models.BigIntegerField(primary_key=True)
-    class Meta:
-        db_table = u'users'
+class Stream(models.Model):
+	user = models.ForeignKey(ApiUser)
+	name = models.CharField(max_length=128)
+	class Meta:
+		db_table = u'streams'
 
-class UserKeywords(models.Model):
-    id = models.BigIntegerField(primary_key=True)
-    user = models.ForeignKey(Users)
-    keyword = models.ForeignKey(Keywords)
-    class Meta:
-        db_table = u'user_keywords'
-
-
+class Source(models.Model):
+	stream = models.ForeignKey(Stream)
+	name = models.CharField(max_length=128)
+	keyword = models.CharField(max_length=128)
+	class Meta:
+		db_table = u'sources'
 

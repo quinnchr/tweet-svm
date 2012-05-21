@@ -6,7 +6,8 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 	url(r'^$', 'frontend.views.index'),
-	url(r'^test', 'frontend.views.index'),
+	url(r'^api/', 'frontend.views.api'),
+	url(r'^stream', 'frontend.views.stream'),
+	url(r'^login', 'frontend.views.login'),
 	url(r'^admin/', include(admin.site.urls))
-	
 )

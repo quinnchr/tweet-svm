@@ -34,6 +34,10 @@
 					<div class="nav-collapse">
 						<ul class="nav">
 							<li class="active"><a href="/">Home</a></li>
+							<li><a href="/api">API</a></li>
+							{% if authenticated %}
+							<li><a href="/logout">Logout</a></li>
+							{% endif %}
 						</ul>
 					</div><!--/.nav-collapse -->
 				</div>

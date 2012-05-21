@@ -7,9 +7,9 @@
 						<li class="selected">
 							<h3>Election</h3>
 							<ul class="nav nav-list">
-								{% for stream in streams %}
-									<li><a href="#">{{ stream.name }}</a></li>
-								{% endfor %}
+								<li class="active"><a href="#">Obama</a></li>
+								<li><a href="#">Romney</a></li>
+								<li><a href="#">Paul</a></li>
 							</ul>
 						</li>
 						<li><a href="#">Apple</a></li>
@@ -56,7 +56,6 @@
 
 			socket.on('data', function(response) {
 				window.graph1.stats = response;
-				window.nav.stats = response;
 				var rate = response.twitter.positive.rate - response.twitter.negative.rate;
 				net += rate * sentiment.graph.duration / 1000;
 				$("#net").html(net.toFixed(2));
