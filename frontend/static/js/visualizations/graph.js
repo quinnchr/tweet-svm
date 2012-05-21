@@ -1,27 +1,32 @@
-function graph(selector, obj, length) {
+function graph(selector, obj, length, type) {
 
 	this.length = length;
 	this.obj = obj;
-	this.graph = new area(selector, obj, length);
+	this.graph = new area_chart(selector, obj, length, type);
+	this.type = type || false;
 
-	this.redraw = function(data) {
-		if(typeof data != 'undefined') {
-			obj.data = data;
+	this.redraw = function(interval) {
+		if(typeof interval != 'undefined') {
+			this.obj.data = interval;
 		}
 		$(selector + ' > svg').remove();
-		this.graph.ticker.stop();
-		this.graph = new area(selector, this.obj, this.length);
+		if(this.graph.type == 'tick') {
+			this.graph.ticker.stop();
+		}
+		this.graph = new area_chart(selector, this.obj, this.length, this.type);
 	}
 
 }
 
-function area(selector, obj, length) {
+function area_chart(selector, obj, length, type) {
 	this.n = length;
 	this.duration = 1000;
 	this.now = new Date();
 	this.obj = obj;
 	this.limit = 3600;
 	this.scale = false;
+	this.selector = selector;
+	this.type = type || false;
 
 	if(this.n > this.limit) {
 		this.duration = this.n/this.limit * 1000;
@@ -48,8 +53,9 @@ function area(selector, obj, length) {
 		.domain([this.now - this.n*this.duration, this.now])
 		.range([0, width]);
 
+	this.range = Math.max.apply(Math, this.obj.data.map(Math.abs));
 	this.y = d3.scale.linear()
-		.domain([-5, 5])
+		.domain([-1*this.range, this.range])
 		.range([height, 0]);
 
 	this.svg = d3.select(selector).append("svg")
@@ -61,13 +67,13 @@ function area(selector, obj, length) {
 	this.clips = this.svg.append("defs");
 
 	this.clips.append("clipPath")
-		.attr("id", "positive")
+		.attr("id", this.selector.replace('#','')+"_positive")
 		.append("rect")
 		.attr("width", width)
 		.attr("height", height/2);
 
 	this.clips.append("clipPath")
-		.attr("id", "negative")
+		.attr("id", this.selector.replace('#','')+"_negative")
 		.append("rect")
 		.attr("width", width)
 		.attr("height", height/2)
@@ -98,37 +104,48 @@ function area(selector, obj, length) {
 		.attr("transform", "translate(0,0)")
 		.call(this.yaxis.tickSubdivide(0).tickValues([0]).tickSize(-width));
 
-	x = this.x;
-	y = this.y;
-	n = this.n;
-	duration = this.duration;
-	now = this.now;
-
 	this.area = d3.svg.area()
 		.interpolate("basis")
-		.x(function(d, i) { return x(now - (n - 1 - i) * duration); })
+		.x($.proxy(function(d, i) { return this.x(this.now - (this.n - 1 - i) * this.duration); },this))
 		.y0(function(d){ return height/2 })
-		.y1(function(d, i) { return y(d); });
+		.y1($.proxy(function(d, i) { return this.y(d); },this));
 
 	this.positive_area = this.svg.append("g")
-		.attr("clip-path", "url(#positive)")
+		.attr("clip-path", "url(#"+this.selector.replace('#','')+"_positive)")
 		.append("path")
 		.data([this.obj.data])
 		.attr("class", "positive")
 		.attr("d", this.area);
 
 	this.negative_area = this.svg.append("g")
-		.attr("clip-path", "url(#negative)")
+		.attr("clip-path", "url(#"+this.selector.replace('#','')+"_negative)")
 		.append("path")
 		.data([this.obj.data])
 		.attr("class", "negative")
 		.attr("d", this.area);
 
-	this.ticker = new tick(this);
+	this.draw = function(duration, func) {
+
+		var callback = func || function() { return; };
+
+		// redraw the line, and slide it to the left
+
+		// slide the x-axis left
+		this.xAxis.transition()
+			.duration(duration)
+			.ease("linear")
+			.call(this.xaxis);
+
+
+	}
+
+	if(this.type == 'tick') {
+		this.ticker = new ticker(this);
+	}
 
 }
 
-function tick(parent) {
+function ticker(parent) {
 
 	if(typeof parent.state == 'undefined') {
 		parent.state = true;
@@ -143,43 +160,62 @@ function tick(parent) {
 			val = 0;
 		}
 		parent.obj.data.push(val);
-		now = new Date();
-		parent.x.domain([now - (parent.n - 2) * parent.duration, now]);
+		parent.now = new Date();
+		parent.x.domain([parent.now - (parent.n - 2) * parent.duration, parent.now]);
 
-		// redraw the line, and slide it to the left
-
-		// slide the x-axis left
-		parent.xAxis.transition()
-			.duration(parent.duration)
-			.ease("linear")
-			.call(parent.xaxis);
-
-		parent.negative_area
-			.attr("d", parent.area)
-			.attr("transform", null)
-			.transition()
-			.duration(parent.duration)
-			.ease("linear")
-			.attr("transform", "translate(" + x(now - (parent.n - 1) * parent.duration) + ")");
-
-		parent.positive_area
-			.attr("d", parent.area)
-			.attr("transform", null)
-			.transition()
-			.duration(parent.duration)
-			.ease("linear")
-			.attr("transform", "translate(" + x(now - (parent.n - 1) * parent.duration) + ")")
-			.each("end", selfTick);
+		// transform the graph
+		parent.draw(parent.duration, selfTick);
 
 		// pop the old data point off the front
 		parent.obj.data.shift();
 	}
 
-	function selfTick() {
-		return tick(parent);
-	}
-
 	this.stop = function() {
 		parent.state = false;
 	}
+
+	function selfTick() {
+		return ticker(parent);
+	}
+
 }
+
+function scrubber(parent, dataWindow, index, length, duration, startTime) {
+
+	this.parent = parent;
+	this.parent.duration = duration;
+	this.parent.length = length;
+
+	this.data = dataWindow;
+	this.index = index;
+	this.length = length;
+	this.start - startTime;
+	this.stop = this.start + this.length * this.parent.duration;
+	this.offset = (new Date()).getTime() - this.stop;
+
+	this.draw = function (duration) {
+		// set the graphs data as the specified slice and update the time range
+		this.parent.obj.data = this.data.slice(this.index, this.index + this.length);
+		this.parent.x.domain([this.stop - (this.parent.length - 2) * this.parent.duration, this.stop]);
+		this.parent.draw(duration);
+	}
+
+	this.update = function(index) {
+		if(typeof this.time == 'undefined' && this.time != false) {
+			this.time = (new Date()).getTime();
+		} else {
+			var currentTime = (new Date()).getTime();
+			var delta = Math.abs(currentTime - this.time);
+			this.time = currentTime;
+			this.stop += (index - this.index) * this.parent.duration;
+			this.index = index;
+			this.draw(delta);
+		}
+	}
+
+	this.reset = function() {
+		this.time = false;
+	}
+
+}
+

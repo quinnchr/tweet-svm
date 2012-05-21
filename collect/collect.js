@@ -46,6 +46,7 @@ subscription = function() {
 
 		twitterClient.onResponse(function(response){
 			var time = new Date(response.created_at);
+			console.log(response);
 			if(response.id && response.user.lang == 'en') {
 				response.keyword = keyword;
 				data = {'time': time.getTime(), 'text': response.text, 'source': 'twitter', 'stream': 'test', 'user': 'quinnchr', 'data': response}

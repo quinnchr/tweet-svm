@@ -23,7 +23,7 @@ def read_queue():
 		yield time_stamp
 
 print 'Initializing Support Vector Machine...'
-svm = pickle.load(open('kernel-reduced-0.11.pickle','r'))
+svm = pickle.load(open('data/test.pickle','r'))
 pool = Pool(initializer=init,initargs=(svm,))
 def classify(x):
 	return pool.apply(f,(x,)) 

@@ -40,7 +40,7 @@ io.sockets.on('connection', function (socket) {
 					// take a sample
 					samples = 3600;
 					factor = samples/length;
-					collection.find({'sample' : {'$lte' : factor}, 'time' : {'$gte' : stop - 10*length , '$lte' : stop}},{'sort':[['time',1]],'limit':length}).toArray(function(err, items) {
+					collection.find({'time' : {'$gte' : stop - 10*length , '$lte' : stop}},{'sort':[['time',1]]}).toArray(function(err, items) {
 						var data = [];
 						var net = 0;
 						for(var i = items.length - 1; i > 0; i--) {
@@ -49,7 +49,7 @@ io.sockets.on('connection', function (socket) {
 						}
 						response = {};
 						response.graph = data.slice(-length);
-						response.navigator = data;
+						response.navigator = data.slice(-length*10);
 						response.net = net;
 						socket.emit('interval', response);
 						mongo.close();
