@@ -19,6 +19,7 @@ class Stream(models.Model):
 	name = models.CharField(max_length=128)
 	class Meta:
 		db_table = u'streams'
+		ordering = ['name']
 
 class Source(models.Model):
 	stream = models.ForeignKey(Stream)
@@ -26,4 +27,5 @@ class Source(models.Model):
 	keyword = models.CharField(max_length=128)
 	class Meta:
 		db_table = u'sources'
+		ordering = ['name']
 

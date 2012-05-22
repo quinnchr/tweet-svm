@@ -21,6 +21,14 @@
 	width: 100%;
 }
 
+.sidebar > ul > li ul {
+	display: none;
+}
+
+.sidebar .selected ul {
+	display: auto;
+}
+
 .sidebar > ul .selected {
 	background-color: white;
 	border-bottom-color: #DDD;
@@ -69,7 +77,7 @@
 
 #login {
 	margin: 100px auto;
-	width: 310px;
+	width: 301px;
 }
 
 /* Overview Page Styles */

@@ -12,7 +12,7 @@ class ApiUser(User):
 	api_secret = models.CharField(max_length=128)
 	objects = UserManager()
 	class Meta:
-		db_table = u'users'
+		db_table = u'api_users'
 
 class Stream(models.Model):
 	user = models.ForeignKey(ApiUser)

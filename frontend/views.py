@@ -8,9 +8,7 @@ from frontend.models import ApiUser, Source, Stream
 
 @login_required
 def index(request):
-	current_user = ApiUser.objects.get(pk=request.user.id)
-	streams = Stream.objects.filter(user=current_user)
-	return render_to_response("main/index.html", {'authenticated': True, 'user': current_user, 'streams': streams}, context_instance=RequestContext(request))
+	return redirect('/stream')
 
 def login(request):
 	if request.POST:
@@ -46,5 +44,6 @@ def api(request):
 	return render_to_response("main/api.html", {}, context_instance=RequestContext(request))
 
 @login_required
-def stream(request):
-	return render_to_response("main/stream.html", {'authenticated': True}, context_instance=RequestContext(request))
+def stream(request, stream = None, source = None):
+	current_user = ApiUser.objects.get(pk=request.user.id)
+	return render_to_response("main/stream.html", {'authenticated': True, 'user': current_user, 'current_stream': stream, 'current_source': source}, context_instance=RequestContext(request))

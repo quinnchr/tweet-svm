@@ -21,6 +21,14 @@
 	width: 100%;
 }
 
+.sidebar > ul > li ul {
+	display: none;
+}
+
+.sidebar .selected ul {
+	display: block;
+}
+
 .sidebar > ul .selected {
 	background-color: white;
 	border-bottom-color: #DDD;

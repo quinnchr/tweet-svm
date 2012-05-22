@@ -4,20 +4,32 @@
 			<div id="overview" class="row-fluid">
 				<div class="span2 sidebar tabbable tabs-left">
 					<ul class="nav nav-tabs">
-						<li class="selected">
-							<h3>Election</h3>
+						{% for stream in user.stream_set.all %}
+						<li {% if stream.name|lower == current_stream %}class="selected"{% endif %}>
+							{% if stream.name|lower == current_stream %}
+							<h3>{{ stream.name }}</h3>
+							{% else %}
+							<a href="#">{{ stream.name }}</a>
+							{% endif %}
 							<ul class="nav nav-list">
-								<li class="active"><a href="#">Obama</a></li>
-								<li><a href="#">Romney</a></li>
-								<li><a href="#">Paul</a></li>
+								{% for source in stream.source_set.all %}
+									<li {% if source.name|lower == current_source %}class="active"{% endif %}><a href="#">{{ source.name }}</a></li>
+								{% endfor %}
 							</ul>
 						</li>
-						<li><a href="#">Apple</a></li>
-						<li><a href="#">Google</a></li>
+						{% endfor %}
 					</ul>
 				</div>
 				<div class="span10">
-					<h2>Obama:</h2>
+					{% if current_source %}
+						<h2>{{ current_source }}:</h2>
+					{% else %}
+						{% if current_stream %}
+							<h2>{{ current_stream }}:</h2>
+						{% else %}
+							<h2>{{ user.first_name }} {{ user.last_name }}:</h2>
+						{% endif %}
+					{% endif %}
 					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease"><i class="icon-plus"></i></a><a href="#" id="periodDecrease"><i class="icon-minus"></i></a></h4>
 					<div id="graph_view">
 						<div id="graph"></div>

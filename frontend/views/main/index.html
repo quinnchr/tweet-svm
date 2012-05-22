@@ -4,16 +4,16 @@
 			<div id="overview" class="row-fluid">
 				<div class="span2 sidebar tabbable tabs-left">
 					<ul class="nav nav-tabs">
-						<li class="selected">
-							<h3>Election</h3>
+						{% for stream in user.stream_set.all %}
+						<li {% if stream.name == current_stream %}class="selected"{% endif %}>
+							<h3>{{ stream.name }}</h3>
 							<ul class="nav nav-list">
-								{% for source in streams %}
-									<li><a href="#">{{ stream.name }}</a></li>
+								{% for source in stream.source_set.all %}
+									<li><a href="#">{{ source.name }}</a></li>
 								{% endfor %}
 							</ul>
 						</li>
-						<li><a href="#">Apple</a></li>
-						<li><a href="#">Google</a></li>
+						{% endfor %}
 					</ul>
 				</div>
 				<div class="span10">
