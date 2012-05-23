@@ -6,7 +6,11 @@ admin.autodiscover()
 
 urlpatterns = patterns('',
 	url(r'^$', 'frontend.views.index'),
-	url(r'^test', 'frontend.views.test'),
+	url(r'^api/', 'frontend.views.api'),
+	url(r'^stream/$', 'frontend.views.stream'),
+	url(r'^stream/(?P<stream>\w+)/$', 'frontend.views.stream'),
+	url(r'^stream/(?P<stream>\w+)/(?P<source>\w+)/$', 'frontend.views.stream'),
+	url(r'^login', 'frontend.views.login'),
+	url(r'^logout', 'frontend.views.logout'),
 	url(r'^admin/', include(admin.site.urls))
-	
 )

@@ -21,6 +21,14 @@
 	width: 100%;
 }
 
+.sidebar > ul > li ul {
+	display: none;
+}
+
+.sidebar .selected ul {
+	display: block;
+}
+
 .sidebar > ul .selected {
 	background-color: white;
 	border-bottom-color: #DDD;
@@ -65,6 +73,11 @@
 
 #index .hero-unit {
 	padding-bottom: 10px;
+}
+
+#login {
+	margin: 100px auto;
+	width: 301px;
 }
 
 /* Overview Page Styles */

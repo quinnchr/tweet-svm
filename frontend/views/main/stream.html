@@ -5,11 +5,15 @@
 				<div class="span2 sidebar tabbable tabs-left">
 					<ul class="nav nav-tabs">
 						{% for stream in user.stream_set.all %}
-						<li {% if stream.name == current_stream %}class="selected"{% endif %}>
+						<li {% if stream.name|lower == current_stream %}class="selected"{% endif %}>
+							{% if stream.name|lower == current_stream %}
 							<h3>{{ stream.name }}</h3>
+							{% else %}
+							<a href="#">{{ stream.name }}</a>
+							{% endif %}
 							<ul class="nav nav-list">
 								{% for source in stream.source_set.all %}
-									<li><a href="#">{{ source.name }}</a></li>
+									<li {% if source.name|lower == current_source %}class="active"{% endif %}><a href="#">{{ source.name }}</a></li>
 								{% endfor %}
 							</ul>
 						</li>
@@ -17,11 +21,19 @@
 					</ul>
 				</div>
 				<div class="span10">
-					<h2>Obama:</h2>
+					{% if current_source %}
+						<h2>{{ current_source }}:</h2>
+					{% else %}
+						{% if current_stream %}
+							<h2>{{ current_stream }}:</h2>
+						{% else %}
+							<h2>{{ user.first_name }} {{ user.last_name }}:</h2>
+						{% endif %}
+					{% endif %}
 					<h4>Last <span id="period">5m</span><a href="#" id="periodIncrease"><i class="icon-plus"></i></a><a href="#" id="periodDecrease"><i class="icon-minus"></i></a></h4>
 					<div id="graph_view">
 						<div id="graph"></div>
-						<div id="navigator"></div>
+						<div id="navigator"><div id="window"></div></div>
 					</div>
 					<div id="stats_view">
 						<h4>Rate: <span id="rate"></span> Net Sentiment: <span id="net"></span></h4>
@@ -69,8 +81,10 @@
 			});
 
 			socket.on('interval', function(response) {
+
+				console.log(response);
 				sentiment.redraw(response.graph);
-				//navigator.redraw(response.navigator);
+				navigator.redraw(response.navigator);
 				$("#period").html(display);
 				net = 0;
 				if(typeof window.graph1.data != 'undefined') {
@@ -79,13 +93,89 @@
 					});
 				}
 			});
+			
+			nav_opaque = "<div class='navigator_opaque'></div>";
+			$('#window').before(nav_opaque).after(nav_opaque);
+			$('#window').draggable({
+				axis: 'x',
+				containment: 'parent',
+				start: function(event, ui) {
+					sentiment.graph.ticker.stop();
+					var length = window.nav.data.length;
+					var start = parseInt($("#window").position().left / $('#navigator').width() * length);
+					var stop = parseInt(($("#window").position().left + $('#window').width()) / $('#navigator').width() * length);
+					var time = (navigator.graph.now - length - stop) * navigator.graph.duration;
+					length = stop - start;
+					sentiment.graph.scrubber = new scrubber(sentiment.graph, window.nav.data, start, length, navigator.duration, time);
+				},
+				drag: function(event, ui) {
+					var start = parseInt($("#window").position().left / $('#navigator').width() * navigator.length);
+					dragging = true;
+					if(selection == 'move') {
+						$nav_first.css('width',ui.position.left);
+						$nav_last.css('left',ui.position.left + $('#window').width() + 2);
+						$nav_last.css('width', parseInt($('#navigator').width() - $("#window").width())- ui.position.left);
+						sentiment.graph.scrubber.update(start);
+					}
+					if(selection == 'left') {
+						$nav_first.css('width',ui.position.left);
+						$("#window").css('width', $nav_last.position().left - ui.position.left - 2);
+					}
+					if(selection == 'right') {
+						ui.position.left = $nav_first.width();
+						$("#window").css('width', event.pageX - position); 
+						$nav_last.css('left',ui.position.left + $('#window').width() + 2);
+						$nav_last.css('width', parseInt($('#navigator').width() - $("#window").width())- ui.position.left);
+					}
+				},
+				stop: function(event, ui) {
+					dragging = false;
+					position = 0;
+					var length = window.nav.data.length;
+					var start = parseInt($("#window").position().left / $('#navigator').width() * length);
+					var stop = parseInt(($("#window").position().left + $('#window').width()) / $('#navigator').width() * length);
+					window.graph1.data = window.nav.data.slice(start,stop);
+					sentiment.length = stop - start;
+					sentiment.redraw();
+				}
+			});
+			$nav_last = $(".navigator_opaque:last");
+			$nav_first = $(".navigator_opaque:first");
+			$nav_last.css('left','100%');
+
 			window.graph1 = {};
 			window.nav = {};
-			sentiment = new graph('#graph', window.graph1, 300);
-			navigator = new graph('#navigator', window.nav, 3000);
+			navigator = new graph('#navigator', window.nav, 3000, 'tick');
+			sentiment = new graph('#graph', window.graph1, 300, 'tick');
+			selection = 'move';
+			dragging = false;
+			position = 0;
 			period = 300;
 			net = 0;
 			display = $('#period').html();
+
+			$("#window").mousemove(function(e){
+				if(dragging == false) {
+					var parentOffset = $(this).offset(); 
+					var relX = e.pageX - parentOffset.left;
+					var relY = e.pageY - parentOffset.top;
+					var width = $(this).width();
+					var percent = relX/width;
+					if(percent < .1) {
+						$(this).css('cursor','w-resize');
+						selection = 'left';
+					}
+					if(percent >= .1 && percent <= .9) {
+						$(this).css('cursor','move');
+						selection = 'move';
+					}
+					if(percent > .9) {
+						$(this).css('cursor','e-resize');
+						selection = 'right';
+						position = e.pageX - $(this).width();
+					}
+				}
+			});
 
 			$("#periodIncrease").click(function(){
 				changed = false
@@ -143,6 +233,8 @@
 					display = parseInt(period/86400) + 'd';
 				}
 				sentiment.length = period;
+				navigator.length = period * 10;
+				navigator.graph.ticker.stop();
 				sentiment.graph.ticker.stop();
 				now = (new Date).getTime()/1000;
 				socket.emit('interval', {start: now - period, stop: now});
