@@ -100,13 +100,12 @@
 				axis: 'x',
 				containment: 'parent',
 				start: function(event, ui) {
-					sentiment.graph.ticker.stop();
+					//sentiment.graph.ticker.stop();
 					var length = window.nav.data.length;
 					var start = parseInt($("#window").position().left / $('#navigator').width() * length);
 					var stop = parseInt(($("#window").position().left + $('#window').width()) / $('#navigator').width() * length);
-					var time = (navigator.graph.now - length - stop) * navigator.graph.duration;
 					length = stop - start;
-					sentiment.graph.scrubber = new scrubber(sentiment.graph, window.nav.data, start, length, navigator.duration, time);
+					//sentiment.graph.scrub(navigator, start, length);
 				},
 				drag: function(event, ui) {
 					var start = parseInt($("#window").position().left / $('#navigator').width() * navigator.length);
@@ -115,7 +114,10 @@
 						$nav_first.css('width',ui.position.left);
 						$nav_last.css('left',ui.position.left + $('#window').width() + 2);
 						$nav_last.css('width', parseInt($('#navigator').width() - $("#window").width())- ui.position.left);
-						sentiment.graph.scrubber.update(start);
+						var percent = ($("#window").position().left + $("#window").width()) / $('#navigator').width();
+						var source_start = navigator.graph.now - window.nav.data.length * navigator.graph.duration;
+						var interval = navigator.graph.now - start;
+						sentiment.offset = (new Date()).getTime() - (source_start + percent * interval);
 					}
 					if(selection == 'left') {
 						$nav_first.css('width',ui.position.left);
@@ -127,6 +129,13 @@
 						$nav_last.css('left',ui.position.left + $('#window').width() + 2);
 						$nav_last.css('width', parseInt($('#navigator').width() - $("#window").width())- ui.position.left);
 					}
+					var length = window.nav.data.length;
+					var start = parseInt($("#window").position().left / $('#navigator').width() * length);
+					var stop = parseInt(($("#window").position().left + $('#window').width()) / $('#navigator').width() * length);
+					window.graph1.data = window.nav.data.slice(start,stop);
+					sentiment.length = stop - start;
+					sentiment.type = 'scobbler';
+					sentiment.redraw();
 				},
 				stop: function(event, ui) {
 					dragging = false;
@@ -136,6 +145,7 @@
 					var stop = parseInt(($("#window").position().left + $('#window').width()) / $('#navigator').width() * length);
 					window.graph1.data = window.nav.data.slice(start,stop);
 					sentiment.length = stop - start;
+					sentiment.type = 'tick';
 					sentiment.redraw();
 				}
 			});

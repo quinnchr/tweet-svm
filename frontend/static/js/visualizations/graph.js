@@ -19,9 +19,11 @@ function graph(selector, obj, length, type) {
 }
 
 function area_chart(selector, obj, length, type) {
+
 	this.n = length;
 	this.duration = 1000;
-	this.now = new Date();
+	this.offset = 0;
+	this.now = new Date() - this.offset;
 	this.obj = obj;
 	this.limit = 3600;
 	this.scale = false;
@@ -124,7 +126,7 @@ function area_chart(selector, obj, length, type) {
 		.attr("class", "negative")
 		.attr("d", this.area);
 
-	this.draw = function(duration, func) {
+	this.draw = function(duration, current, func) {
 
 		var callback = func || function() { return; };
 
@@ -136,7 +138,28 @@ function area_chart(selector, obj, length, type) {
 			.ease("linear")
 			.call(this.xaxis);
 
+		this.negative_area
+			.attr("d", this.area)
+			.attr("transform", null)
+			.transition()
+			.duration(duration)
+			.ease("linear")
+			.attr("transform", "translate(" + this.x(current - (this.n - 1) * this.duration) + ")");
 
+		this.positive_area
+			.attr("d", this.area)
+			.attr("transform", null)
+			.transition()
+			.duration(duration)
+			.ease("linear")
+			.attr("transform", "translate(" + this.x(current - (this.n - 1) * this.duration) + ")")
+			.each("end", func);
+
+
+	}
+
+	this.scrub = function(dataWindow, index, length) {
+		this.scrubber = new scrubber(this, dataWindow, index, length);
 	}
 
 	if(this.type == 'tick') {
@@ -160,11 +183,11 @@ function ticker(parent) {
 			val = 0;
 		}
 		parent.obj.data.push(val);
-		parent.now = new Date();
+		parent.now = new Date() - parent.offset;
 		parent.x.domain([parent.now - (parent.n - 2) * parent.duration, parent.now]);
 
 		// transform the graph
-		parent.draw(parent.duration, selfTick);
+		parent.draw(parent.duration, parent.now, selfTick);
 
 		// pop the old data point off the front
 		parent.obj.data.shift();
@@ -180,36 +203,51 @@ function ticker(parent) {
 
 }
 
-function scrubber(parent, dataWindow, index, length, duration, startTime) {
+function scrubber(parent, source, index, length) {
 
 	this.parent = parent;
-	this.parent.duration = duration;
+	this.parent.duration = source.graph.duration;
 	this.parent.length = length;
 
-	this.data = dataWindow;
+	this.source = source;
+	this.data = source.graph.obj.data;
 	this.index = index;
 	this.length = length;
-	this.start - startTime;
-	this.stop = this.start + this.length * this.parent.duration;
-	this.offset = (new Date()).getTime() - this.stop;
+
+	this.indexer = function(index) {
+		var percent = index / source.graph.obj.data.length;
+		var start = source.graph.now - source.graph.obj.data.length * source.graph.duration;
+		var interval = source.graph.now - start;
+		return start + percent * interval;
+	}
+
+	this.start = this.indexer(this.index);
+	this.stop = this.indexer(this.index + this.length);
+	this.parent.offset = (new Date()).getTime() - this.stop;
 
 	this.draw = function (duration) {
 		// set the graphs data as the specified slice and update the time range
 		this.parent.obj.data = this.data.slice(this.index, this.index + this.length);
 		this.parent.x.domain([this.stop - (this.parent.length - 2) * this.parent.duration, this.stop]);
-		this.parent.draw(duration);
+		this.parent.draw(duration, this.stop);
 	}
 
-	this.update = function(index) {
+	this.update = function(idx) {
 		if(typeof this.time == 'undefined' && this.time != false) {
 			this.time = (new Date()).getTime();
 		} else {
-			var currentTime = (new Date()).getTime();
-			var delta = Math.abs(currentTime - this.time);
-			this.time = currentTime;
-			this.stop += (index - this.index) * this.parent.duration;
-			this.index = index;
-			this.draw(delta);
+			if(typeof this.animated == 'undefined' || this.animated == false) {
+				this.animated = true;
+				var currentTime = (new Date()).getTime();
+				var timeDelta = Math.abs(currentTime - this.time);
+				var signum = idx - this.index;
+				var indexDelta = Math.abs(idx - this.index);
+				this.index = idx;
+				this.stop = this.indexer(this.index + this.length);
+				this.draw(timeDelta);
+				this.time = currentTime;
+				this.animated = false;
+			}
 		}
 	}
 
