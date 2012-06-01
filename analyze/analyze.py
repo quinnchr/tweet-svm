@@ -12,7 +12,6 @@ class Analyze:
 		self.user = sys.argv[1]
 		self.stream = sys.argv[2]
 		self.prefix = ':'.join([user, stream])
-		self.sources = db.smembers(self.prefix)
 		self.analytics = analytics
 		self.db = db
 		self.window = 50
@@ -25,7 +24,7 @@ class Analyze:
 		while(True):
 			stats = {}
 			self.get_count()
-			for source in self.sources:
+			for source in self.get_sources():
 				stats[source] = {}
 				stats['time'] = time.time()
 				stats['sample'] = random.uniform(0,1)
@@ -40,7 +39,7 @@ class Analyze:
 			time.sleep(1)
 
 	def get_count(self):
-		for source in self.sources:
+		for source in self.get_sources():
 			if source not in self.count:
 				self.count[source] = {}
 				self.rate[source] = {}
@@ -63,6 +62,9 @@ class Analyze:
 	def get_rate(self,x):
 		# exponential smoothing, like a rolling average but we weight older values less
 		return self.smooth(numpy.array(x))[len(x)]
+	
+	def get_sources(self):
+		return db.smembers(self.prefix)
 
 	def smooth(self,x, window_len=10, window='hanning'):
 
