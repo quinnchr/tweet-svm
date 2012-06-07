@@ -16,12 +16,10 @@ command.on("message", function (channel, message) {
 	cmd = JSON.parse(message);
 	switch(cmd.action) {
 		case 'add':
-			db.sadd('server:keywords', cmd.keyword);		
-			subscriptions.subscribe(cmd.keyword,db);
+			subscriptions.subscribe(cmd.user, cmd.stream, cmd.source, db);
 			break;
 		case 'remove':
-			db.srem('server:keywords', cmd.keyword);
-			subscriptions.unsubscribe(cmd.keyword);
+			subscriptions.unsubscribe(cmd.user, cmd.stream, cmd.source);
 			break;
 	}
 });
@@ -32,7 +30,7 @@ subscription = function() {
 
 	this.subscriptions = new Array();
 
-	this.subscribe = function(keyword, db) {
+	this.subscribe = function(user, stream, source, db) {
 		var twitterClient = new twitter();
 
 		var count = 0;
@@ -48,30 +46,26 @@ subscription = function() {
 			var time = new Date(response.created_at);
 			console.log(response);
 			if(response.id && response.user.lang == 'en') {
-				response.keyword = keyword;
-				data = {'time': time.getTime(), 'text': response.text, 'source': 'twitter', 'stream': 'test', 'user': 'quinnchr', 'data': response}
+				response.keyword = source;
+				data = {'time': time.getTime(), 'text': response.text, 'source': source, 'stream': stream, 'user': user, 'data': response}
 				db.lpush('process:queue', JSON.stringify(data));
 				count++;
 			}
 		})
 
 		twitterClient.setMethod('track');
-		twitterClient.addKeywords(keyword);
+		twitterClient.addKeywords(source);
 		twitterClient.server();
-		this.subscriptions[keyword] = twitterClient.twitter;
+		this.subscriptions[user] = this.subscriptions['user'] || [];
+		this.subscriptions[user][stream] = this.subscriptions[user][stream] || [];
+		this.subscriptions[user][stream][source] = twitterClient.twitter;
 	}
 
-	this.unsubscribe = function(keyword) {
-		this.subscriptions[keyword].connection.end();
+	this.unsubscribe = function(user, stream, source) {
+		this.subscriptions[user][stream][source].connection.end();
 	}
 
 }
 
 subscriptions = new subscription();
-
-db.smembers('server:keywords', function(err, keywords) {
-	keywords.forEach(function(keyword, i) {
-		subscriptions.subscribe(keyword,db)
-	});
-});
 

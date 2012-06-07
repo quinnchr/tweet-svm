@@ -1,3 +1,4 @@
+import os
 import redis
 import json
 import time
@@ -23,8 +24,8 @@ def read_queue():
 		yield time_stamp
 
 print 'Initializing Support Vector Machine...'
-svm = pickle.load(open('data/test.pickle','r'))
-pool = Pool(initializer=init,initargs=(svm,))
+svm = pickle.load(open(os.path.dirname(__file__) + '/data/kernel-reduced-0.11.pickle','r'))
+#pool = Pool(initializer=init,initargs=(svm,))
 def classify(x):
 	return pool.apply(f,(x,)) 
 print 'SVM Initialized'
@@ -41,7 +42,7 @@ for time_stamp in read_queue():
 	source_prefix = ':'.join([time_stamp[u'user'], time_stamp[u'stream'], time_stamp[u'source']])
 	stream_prefix = ':'.join([time_stamp[u'user'], time_stamp[u'stream']])
 	# do the classification
-	score = classify(time_stamp[u'text'])
+	score = svm.classify(time_stamp[u'text'])
 	print 'Classified: ' + sentiment[score]
 	time_stamp[u'sentiment'] = sentiment[score]
 	# throw it in mongo for permanent storage and add the id to redis for stats
