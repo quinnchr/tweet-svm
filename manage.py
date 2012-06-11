@@ -39,25 +39,31 @@ class Manager:
 	def add_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream  = kwargs[u'stream']
+		self.db.sadd(user,stream)
 		self.twiddler.addProgramToGroup('users', user+':'+stream, {'command':'/usr/bin/python analyze/analyze.py ' + user + ' ' + stream}) 
 
 	def add_source(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
+		self.db.sadd(user + ':' + stream, source)
 		command = {'action': 'add', 'user': user, 'stream': stream, 'source': source}
 		self.db.publish('server:commands',json.dumps(command))
 
 	def remove_user(self, **kwargs):
 		user = kwargs[u'user']
 		code = subprocess.call(['deluser', user])
-		return subprocess.call(['delgroup',user])
+		code = subprocess.call(['delgroup',user])
+		for stream in self.db.smembers(user):
+			self.remove_stream({'user': user, 'stream': stream})
 
 	def remove_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream  = kwargs[u'stream']
 		self.supervisor.stopProcess('users:' + user + ':' + stream)
 		self.twiddler.removeProcessFromGroup('users', user + ':' + stream)
+		for source in self.db.smembers(user + ':' + stream):
+			self.remove_source({'user': user, 'stream': stream, 'source': source})
 
 	def remove_source(self, **kwargs):
 		user = kwargs[u'user']
@@ -65,6 +71,7 @@ class Manager:
 		source  = kwargs[u'source']
 		command = {'action': 'remove', 'user': user, 'stream': stream, 'source': source}
 		self.db.publish('server:commands',json.dumps(command))
+		self.db.srem(user + ':' + stream, source)
 
 if __name__ == '__main__':
 	db = redis.StrictRedis(host='localhost', port=6379, db=0).pubsub()
