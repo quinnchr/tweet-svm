@@ -1,9 +1,9 @@
-import redis
 import json
-import time
 import numpy
-import sys
 import random
+import redis
+import sys
+import time
 from pymongo import Connection
 
 class Analyze:
@@ -97,5 +97,6 @@ if __name__ == "__main__":
 	for stat in analytics.process_tick():
 		db.publish('server:emit',json.dumps(stat))
 		print stat
+		sys.stdout.flush()
 
 

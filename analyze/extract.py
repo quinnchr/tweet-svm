@@ -2,6 +2,7 @@ from time import time
 from sklearn.feature_extraction import text
 from sklearn import decomposition
 from collections import Counter
+from pymongo import Connection
 import redis, sys, json, pickle, numpy, re
 
 n_samples = 5000
@@ -9,33 +10,20 @@ n_features = 1000
 n_topics = 10
 n_top_words = 20
 
-# grab the data for our ids, need to be careful here and put a cap on the hash size
-def get_tweet(db,key,i):
-	collection, keyword = key.split(':')
-	tweet_id = db.zrange(key,i,i)[0]
-	tweet = json.loads(db.hget('tweets:'+keyword, tweet_id))
-	return tweet
-
-db = redis.StrictRedis(host='localhost', port=6379, db=0)
-key = 'positive:' + sys.argv[1]
+mongo = Connection('localhost', 27017).ml
 # let's determine our interval
-interval = (float(sys.argv[2])*10**6, float(sys.argv[3])*10**6)
+user, stream, source, sentiment, start, stop = sys.argv[1:]
+db = mongo[user].data
+interval = (float(start)*10**3, float(stop)*10**3)
 start = interval[0]
 stop = interval[1]
-# add the intervals to the sorted set then get the rank and delete them to determine the range of our subset
-db.zadd(key,start,'START')
-db.zadd(key,stop,'STOP')
-start_index = db.zrank(key,'START')
-stop_index = db.zrank(key,'STOP')
-db.zrem(key,'START')
-db.zrem(key,'STOP')
-# now we take a sampling to reduce our feature space
-ids = set(numpy.vectorize(int)(numpy.linspace(start_index,stop_index,num=n_samples)) - 2) # shift to account for deletion of our markers
 data = []
 tweet_urls = []
 url_regex = re.compile(r'([A-Za-z]{3,9})://([-;:&=\+\$,\w]+@{1})?([-A-Za-z0-9\.]+)+:?(\d+)?((/[-\+~%/\.\w]+)?\??([-\+=&;%@\.\w]+)?#?([\w]+)?)?')
-for i in ids:
-	tweet = get_tweet(db,key,i)
+
+query = {'user': user, 'stream': stream, 'source': source, 'sentiment': sentiment, 'time': {'$gte': start, '$lte': stop}}
+
+for tweet in db.find(query):
 	tweet_text = tweet[u'text'].encode('ascii','ignore')
 	# count URLs then scrub them out
 	for tweet_url in url_regex.finditer(tweet_text):
@@ -48,9 +36,9 @@ for i in ids:
 	if re.match(r'(RT | RT| RT )',tweet_text) == None:
 		data.append(tweet_text)
 
-print '\n'.join(tweet_urls)
+#print '\n'.join(tweet_urls)
 tweet_urls = Counter(tweet_urls)
-#print tweet_urls.most_common(10)
+print tweet_urls.most_common(10)
 
 
 vectorizer = text.CountVectorizer(max_df=0.95, max_features=n_features, stop_words='english', max_n=3)
