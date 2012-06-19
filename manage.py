@@ -18,8 +18,9 @@ class Manager:
 
 	def __init__(self, db):
 		self.functions = dict(inspect.getmembers(self, predicate=inspect.ismethod))
-		self.twiddler = xmlrpclib.ServerProxy('http://quinnchr:password@localhost:9001').twiddler
-		self.supervisor = xmlrpclib.ServerProxy('http://quinnchr:password@localhost:9001').supervisor
+		self.host = 'http://quinnchr:password@localhost:9001'
+		self.twiddler = xmlrpclib.ServerProxy(self.host).twiddler
+		self.supervisor = xmlrpclib.ServerProxy(self.host).supervisor
 		self.db = db
 
 	def dispatch(self, data):
@@ -42,7 +43,10 @@ class Manager:
 		stream = kwargs[u'stream']
 		self.db.sadd(user, stream)
 		try:
-			self.twiddler.addProgramToGroup('users', user+':'+stream, {'command':'/usr/bin/python analyze/analyze.py ' + user + ' ' + stream}) 
+			self.twiddler.addProgramToGroup(
+				'users',
+				user + ':' + stream,
+				{'command': '/usr/bin/python analyze/analyze.py ' + user + ' ' + stream})
 		except xmlrpclib.Fault:
 			print "Error adding program"
 
@@ -78,7 +82,12 @@ class Manager:
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
-		command = {'action': 'remove', 'user': user, 'stream': stream, 'source': source}
+		command = {
+			'action': 'remove',
+			'user': user,
+			'stream': stream,
+			'source': source
+		}
 		self.db.publish('server:commands', json.dumps(command))
 		self.db.srem(user + ':' + stream, source)
 
