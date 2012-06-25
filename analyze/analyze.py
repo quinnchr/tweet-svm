@@ -4,6 +4,8 @@ import random
 import redis
 import sys
 import time
+from collections import *
+from extract import extract
 from pymongo import Connection
 
 class Analyze:
@@ -18,24 +20,30 @@ class Analyze:
 		self.count = {}
 		self.rate = {}
 		self.get_count()
-		
+	
 
 	def process_tick(self):
 		while(True):
+			stat_stream = defaultdict(dict)
+			stat_stream = {'stream': self.stream}
 			stats = {}
 			self.get_count()
 			for source in self.get_sources():
-				stats[source] = {}
-				stats['time'] = time.time()
-				stats['sample'] = random.uniform(0,1)
+				stat = stat_stream
+				stat['source'] = source
+				stat['time'] = time.time()
+				stat['sample'] = random.uniform(0,1)
+				stat['data'] = {}
 				prefix = self.prefix + ':' + source
 				for key in ('ids','positive','negative'):
-					stats[source][key] = {
+					stat['data'][key] = {
 						'val' : self.count[source][key], 
 						'rate' : self.get_rate(self.rate[source][key])
 					}
+				self.analytics.insert(stat)
+				del stat['_id']
+				stats[source] = stat
 			yield stats
-			self.analytics.insert(stats)
 			time.sleep(1)
 
 	def get_count(self):

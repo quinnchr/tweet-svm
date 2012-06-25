@@ -1,10 +1,12 @@
 from sklearn.feature_extraction import text
+from collections import defaultdict
 from sklearn import decomposition
+from sklearn.cluster import Ward
 from collections import Counter
 from pymongo import Connection
 import re
 import time
-
+import operator
 
 class extract:
 
@@ -27,10 +29,12 @@ class extract:
 	def update(self):
 		tweet_urls = []
 		data = []
+		final = []
 		self.stop = (time.time() - int(self.duration)) * 1000
 		self.query['time']['$gte'] = self.stop
 		for tweet in self.db.find(self.query):
 			tweet_text = tweet[u'text'].encode('ascii', 'ignore')
+			original = tweet_text
 			# count URLs then scrub them out
 			for tweet_url in self.url_regex.finditer(tweet_text):
 				tweet_urls.append(tweet_url.group(0))
@@ -40,19 +44,24 @@ class extract:
 			# scrub out mentions
 			tweet_text = re.sub(r'(@\w+)', '', tweet_text)
 			if re.match(r'(RT | RT| RT )', tweet_text) == None:
-				data.append(tweet_text)
+				if tweet_text not in data:
+					data.append(tweet_text)
+					final.append({'tweet': original, 'score': tweet[u'data'][u'user'][u'followers_count'] * (1 + tweet[u'data'][u'retweet_count'])})
 		tweet_urls = Counter(tweet_urls)
 		self.data = data
 		self.urls = tweet_urls
 		self.vectorizer = text.CountVectorizer(max_df=0.95, max_features=self.features, stop_words='english', max_n=2)
 
 		counts = self.vectorizer.fit_transform(data)
-		tfidf = text.TfidfTransformer().fit_transform(counts)
-		# Fit the NMF model
-		#print "Fitting the NMF model on with n_samples=%d and n_features=%d..." % (n_samples, n_features)
-		self.nmf = decomposition.NMF(n_components=self.topics).fit(tfidf)
-		# Inverse the vectorizer vocabulary
-		feature_names = self.vectorizer.get_feature_names()
-		self.features = []
-		for topic_idx, topic in enumerate(self.nmf.components_):
-			self.features.append([feature_names[i] for i in topic.argsort()[:-self.top_words - 1:-1]])
+		self.tfidf = text.TfidfTransformer().fit_transform(counts)
+		ward = Ward(n_clusters=self.topics).fit(self.tfidf.todense())
+		self.cluster = defaultdict(list)
+		for index, label in enumerate(ward.labels_):
+			self.cluster[label].append(final[index])
+		self.groups = []
+		for i, cluster in self.cluster.iteritems():
+			group = {}
+			group['cluster'] = sorted(cluster, key=operator.itemgetter('score'))
+			max_key = max(cluster, key=operator.itemgetter('score'))
+			group['topic'] = max_key['tweet']
+			self.groups.append(group)

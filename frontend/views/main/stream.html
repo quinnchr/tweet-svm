@@ -41,17 +41,7 @@
 							<li class="active"><a href="#">Topics</a></li>
 							<li><a href="#">Stats</a></li>
 						</ul>
-						<ol>
-							<li>barack barack obama president barack president barack obama president twitter washington american story le read clooney sexy want hell george george clooney know number reuters</li>
-							<li>marriage gay gay marriage sex sex marriage obama gay support obama gay marriage stance support gay support gay marriage interview marriage stance gay marriage stance supports evolving issue backing position carolina</li>
-							<li>president president obama albany congress president barack president barack obama today jobs list news love 2012 video let tuesday equality ohio second country visits</li>
-							<li>rt rt obama obama rt gt good love amp hahaha lol says lt elected america di old revolution man armed revolution revolution obama armed revolution obama</li>
-							<li>romney obama romney romney obama mitt mitt romney news treason poll race paul 2012 44 cookiegate says voters vs ron paul ron economy video</li>
-							<li>michelle michelle obama love say did obama say say michelle proposed say michelle barack obama say obama say michelle michelle proposed proposed did barack did barack obama lady wants self wanna proposed don wanna obama self</li>
-							<li>vote vote obama going nc black democrats percent election primary inmate 2012 west 40 dem need good party west virginia votes paul</li>
-							<li>campaign obama campaign ad new edwards julia ads donor john edwards john edwards donor life warned says million clooney life julia washington launched told</li>
-							<li>tcot gop p2 tlot teaparty tcot tlot tcot gop sgp dems obamas tcot p2 p2 tcot teaparty tcot congress video gop teaparty ows ocra amp tcot teaparty</li>
-							<li>like just amp obama just dog lol like obama think just like ate know obama ate got did right said good obama amp don time</li>					
+						<ol id="topics">
 						</ol>
 					</div>
 				</div>
@@ -64,25 +54,34 @@
 		<script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
 		<script src="{{ STATIC_URL }}js/visualizations/graph.js"></script>
 		<script>
+			userObj = {user: '{{ user.username }}', stream: '{{ current_stream }}', source: '{{ current_source}}' };
 			socket = io.connect('http://localhost:8080');
 
 			socket.on('data', function(response) {
-				window.graph1.stats = response;
-				window.nav.stats = response;
-				var rate = response.twitter.positive.rate - response.twitter.negative.rate;
-				net += rate * sentiment.graph.duration / 1000;
-				$("#net").html(net.toFixed(2));
-				$("#rate").html(rate.toFixed(2));
+				if('groups' in response) {
+					info = ''
+					for(var i = 0; i < response.groups.length; i++) {
+						info += '<li>'+response.groups[i].topic+'</li>\n'
+					}
+					$("#topics").html(info)
+				} else {
+					window.graph1.stats = response.obama.data;
+					window.nav.stats = response[userObj['source']].data;
+					var rate = response[userObj['source']].data.positive.rate - response[userObj['source']].data.negative.rate;
+					net += rate * sentiment.graph.duration / 1000;
+					$("#net").html(net.toFixed(2));
+					$("#rate").html(rate.toFixed(2));
+				}
 			});
 
 			socket.on('init', function(response) {
 				now = (new Date).getTime()/1000;
-				socket.emit('interval', {start: now - sentiment.length, stop: now});
+				socket.emit('interval', {user: userObj, start: now - sentiment.length, stop: now});
 			});
 
 			socket.on('interval', function(response) {
 
-				console.log(response);
+				//console.log(response);
 				sentiment.redraw(response.graph);
 				navigator.redraw(response.navigator);
 				$("#period").html(display);
@@ -247,7 +246,7 @@
 				navigator.graph.ticker.stop();
 				sentiment.graph.ticker.stop();
 				now = (new Date).getTime()/1000;
-				socket.emit('interval', {start: now - period, stop: now});
+				socket.emit('interval', {user: userObj, start: now - period, stop: now});
 			}
 		</script>
 {% endblock %}

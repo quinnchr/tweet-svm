@@ -177,7 +177,7 @@ function ticker(parent) {
 	if(parent.state == true) {
 		// push a new data point onto the back
 		if(typeof parent.obj.stats != 'undefined') {
-			stat = parent.obj.stats.twitter;
+			stat = parent.obj.stats;
 			val = stat.positive.rate - stat.negative.rate;
 		} else {
 			val = 0;

@@ -34,17 +34,23 @@ io.sockets.on('connection', function (socket) {
 		stop = message.stop;
 		start = message.start;
 		length = stop - start;
+		user = message.user.user;
+		stream = message.user.stream;
+		source = message.user.source;
 		mongo.open(function(err, db) {
 			if(!err) {
-				mongo.collection('quinnchr.analytics', function(err, collection) {
+				mongo.collection(user+'.analytics', {safe: true}, function(err, collection) {
 					// take a sample
 					samples = 3600;
 					factor = samples/length;
-					collection.find({'time' : {'$gte' : stop - 10*length , '$lte' : stop}},{'sort':[['time',1]]}).toArray(function(err, items) {
+					query = {'stream': stream, 'source': source, 'time' : {'$gte' : stop - 10*length , '$lte' : stop}};
+					console.log(query);
+					collection.find(query ,{'sort':[['time',1]]}).toArray(function(err, items) {
 						var data = [];
 						var net = 0;
+						console.log(items.length);
 						for(var i = items.length - 1; i > 0; i--) {
-							data[i] = items[i].twitter.positive.rate - items[i].twitter.negative.rate;
+							data[i] = items[i].data.positive.rate - items[i].data.negative.rate;
 							net += data[i];
 						}
 						response = {};
