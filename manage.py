@@ -1,8 +1,8 @@
-import inspect
-import json
-import redis
-import subprocess
 import xmlrpclib
+import subprocess
+import redis
+import json
+import inspect
 
 
 class CommandError(Exception):
