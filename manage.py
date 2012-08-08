@@ -25,7 +25,6 @@ class Manager:
 
 	def dispatch(self, data):
 		try:
-			data = json.loads(data)
 			command = data[u'command']
 			options = data[u'options']
 			if command in self.functions:
@@ -36,11 +35,13 @@ class Manager:
 
 	def add_user(self, **kwargs):
 		user = kwargs[u'user']
+		self.db.sadd('server:users', user)
 		return subprocess.call(['useradd', '-r', '-s', '/bin/false', user])
 
 	def add_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
+		self.check_resource(user)
 		self.db.sadd(user, stream)
 		try:
 			self.twiddler.addProgramToGroup(
@@ -54,34 +55,40 @@ class Manager:
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
+		self.check_resource(user, stream)
 		self.db.sadd(user + ':' + stream, source)
 		command = {'action': 'add', 'user': user, 'stream': stream, 'source': source}
 		self.db.publish('server:commands', json.dumps(command))
 
 	def remove_user(self, **kwargs):
 		user = kwargs[u'user']
+		self.check_resource(user)
 		code = subprocess.call(['deluser', user])
 		code = subprocess.call(['delgroup', user])
 		for stream in self.db.smembers(user):
 			self.remove_stream(user=user, stream=stream)
+		self.db.srem('server:users', user)
 
 	def remove_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
+		self.check_resource(user, stream)
 		try:
 			self.supervisor.stopProcess('users:' + user + ':' + stream)
 			self.twiddler.removeProcessFromGroup('users', user + ':' + stream)
 		except xmlrpclib.Fault:
 			print "Bad process"
 
-		self.db.srem(user, stream)
 		for source in self.db.smembers(user + ':' + stream):
 			self.remove_source(user=user, stream=stream, source=source)
+
+		self.db.srem(user, stream)
 
 	def remove_source(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
+		self.check_resource(user, stream, source)
 		command = {
 			'action': 'remove',
 			'user': user,
@@ -91,10 +98,41 @@ class Manager:
 		self.db.publish('server:commands', json.dumps(command))
 		self.db.srem(user + ':' + stream, source)
 
+	def get_users(self, **kwargs):
+		users = []
+		for user in self.db.smembers('server:users'):
+			users.append(user)
+		return users
+
+	def get_streams(self, **kwargs):
+		user = kwargs[u'user']
+		self.check_resource(user)
+		streams = []
+		for stream in self.db.smembers(user):
+			streams.append(stream)
+		return streams
+
+	def get_sources(self, **kwargs):
+		user = kwargs[u'user']
+		stream = kwargs[u'stream']
+		self.check_resource(user, stream)
+		sources = []
+		for source in self.db.smembers(user + ':' + stream):
+			sources.append(source)
+		return sources
+
+	def check_resource(self, user, stream="", source=""):
+		if not self.db.sismember('server:users', user):
+			raise CommandError('User does not exist')
+		if stream and not self.db.sismember(user, stream):
+			raise CommandError('Stream does not exist')
+		if source and not self.db.sismember(user + ':' + stream, source):
+			raise CommandError('Source does not exist')
+
 if __name__ == '__main__':
 	db = redis.StrictRedis(host='localhost', port=6379, db=0).pubsub()
 	db.subscribe('manage')
 	# start the main loop
 	controller = Manager(redis.StrictRedis(host='localhost', port=6379, db=0))
 	for command in db.listen():
-		controller.dispatch(command['data'])
+		controller.dispatch(json.loads(command['data']))
