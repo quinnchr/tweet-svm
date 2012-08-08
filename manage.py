@@ -1,8 +1,13 @@
-import xmlrpclib
-import subprocess
-import redis
-import json
+import base64
+import random
+import hashlib
+import hmac
 import inspect
+import json
+import redis
+import subprocess
+import uuid
+import xmlrpclib
 
 
 class CommandError(Exception):
@@ -21,6 +26,7 @@ class Manager:
 		self.host = 'http://quinnchr:password@localhost:9001'
 		self.twiddler = xmlrpclib.ServerProxy(self.host).twiddler
 		self.supervisor = xmlrpclib.ServerProxy(self.host).supervisor
+		self.server_key = "f2ca1bb6c7e907d06dafe4687e579fce76b37e4e93b7605022da52e6ccc26fd2"
 		self.db = db
 
 	def dispatch(self, data):
@@ -34,14 +40,23 @@ class Manager:
 			pass
 
 	def add_user(self, **kwargs):
-		user = kwargs[u'user']
-		self.db.sadd('server:users', user)
-		return subprocess.call(['useradd', '-r', '-s', '/bin/false', user])
+		user = str(uuid.uuid4()).replace('-','')
+		public_key = base64.b64encode(hmac.new(self.server_key, user, hashlib.sha256).digest())
+		private_key = base64.b64encode(hmac.new(self.server_key, str(random.getrandbits(256)), hashlib.sha256).digest())
+		self.db.sadd("server:users", user)
+		self.db.hset("server:uuids", public_key, user)
+		self.db.hset("server:credentials", public_key, private_key)
+		self.db.hset('server:public_keys', user, public_key)
+		code = subprocess.call(['useradd', '-r', '-s', '/bin/false', user])
+		return user, public_key, private_key
 
 	def add_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
-		self.check_resource(user)
+		if not self.check_resource(user):
+			raise CommandError('Resource does not exist.')
+		if self.check_resource(user, stream):
+			raise CommandError('Resource already exists.')
 		self.db.sadd(user, stream)
 		try:
 			self.twiddler.addProgramToGroup(
@@ -55,24 +70,34 @@ class Manager:
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
-		self.check_resource(user, stream)
+		if not self.check_resource(user, stream):
+			raise CommandError('Resource does not exist.')
+		if self.check_resource(user, stream, source):
+			raise CommandError('Resource already exists.')
 		self.db.sadd(user + ':' + stream, source)
 		command = {'action': 'add', 'user': user, 'stream': stream, 'source': source}
 		self.db.publish('server:commands', json.dumps(command))
 
 	def remove_user(self, **kwargs):
 		user = kwargs[u'user']
-		self.check_resource(user)
+		key = self.db.hget('server:public_keys', user)
+		self.db.hdel('server:public_keys', user)
+		if not self.check_resource(user):
+			raise CommandError('Resource does not exist.')
 		code = subprocess.call(['deluser', user])
 		code = subprocess.call(['delgroup', user])
 		for stream in self.db.smembers(user):
 			self.remove_stream(user=user, stream=stream)
-		self.db.srem('server:users', user)
+		self.db.srem("server:users", user)
+		self.db.hdel("server:uuids", key)
+		self.db.hdel("server:credentials", key)
+		self.db.hdel('server:public_keys', user)
 
 	def remove_stream(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
-		self.check_resource(user, stream)
+		if not self.check_resource(user, stream):
+			raise CommandError('Resource does not exist.')
 		try:
 			self.supervisor.stopProcess('users:' + user + ':' + stream)
 			self.twiddler.removeProcessFromGroup('users', user + ':' + stream)
@@ -88,7 +113,8 @@ class Manager:
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
 		source = kwargs[u'source']
-		self.check_resource(user, stream, source)
+		if not self.check_resource(user, stream, source):
+			raise CommandError('Resource does not exist.')
 		command = {
 			'action': 'remove',
 			'user': user,
@@ -106,7 +132,8 @@ class Manager:
 
 	def get_streams(self, **kwargs):
 		user = kwargs[u'user']
-		self.check_resource(user)
+		if not self.check_resource(user):
+			raise CommandError('Resource does not exist.')
 		streams = []
 		for stream in self.db.smembers(user):
 			streams.append(stream)
@@ -115,19 +142,24 @@ class Manager:
 	def get_sources(self, **kwargs):
 		user = kwargs[u'user']
 		stream = kwargs[u'stream']
-		self.check_resource(user, stream)
+		if not self.check_resource(user, stream):
+			raise CommandError('Resource does not exist.')
 		sources = []
 		for source in self.db.smembers(user + ':' + stream):
 			sources.append(source)
 		return sources
 
-	def check_resource(self, user, stream="", source=""):
-		if not self.db.sismember('server:users', user):
-			raise CommandError('User does not exist')
-		if stream and not self.db.sismember(user, stream):
-			raise CommandError('Stream does not exist')
-		if source and not self.db.sismember(user + ':' + stream, source):
-			raise CommandError('Source does not exist')
+	def check_resource(self, user="", stream="", source=""):
+		if user:
+			resource_pool = "server:users"
+			resource = user
+		if stream:
+			resource_pool = user
+			resource = stream
+		if source:
+			resource_pool = ":".join((user, stream))
+			resource = source
+		return self.db.sismember(resource_pool, resource)
 
 if __name__ == '__main__':
 	db = redis.StrictRedis(host='localhost', port=6379, db=0).pubsub()
