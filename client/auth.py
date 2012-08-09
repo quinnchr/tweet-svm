@@ -9,7 +9,7 @@ class Auth:
 		self.public_key = public_key
 		self.private_key = private_key
 
-	def digest(self, request, data):
+	def digest(self, request, data={}):
 		request_args = []
 		request_args += [k + '=' + v for k, v in data.iteritems() if k not in ('key', 'digest')]
 		request_args.append(request)
