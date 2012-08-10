@@ -14,8 +14,6 @@ app.listen(8080);
 io.sockets.on('connection', function (socket) {
 
 	socket.emit('init',{});
-	server = new Server('localhost', 27017, {auto_reconnect: true});
-	mongo = new Db('ml', server);
 
 	db = redis.createClient();
 
@@ -25,10 +23,29 @@ io.sockets.on('connection', function (socket) {
 
 	db.on("message", function (channel, message) {
 		data = JSON.parse(message);
-		socket.emit('data', data);
+		empty = true;
+		for(var prop in data) {
+			if(data.hasOwnProperty(prop)) {
+				empty = false;
+			}
+		}
+		if(!empty) {
+			socket.emit('data', data);
+		}
 	});
 
-	db.subscribe('server:emit');
+	socket.on('auth', function (message) {
+		session = message.session;
+		if(session) {
+			socket.emit('auth', {});
+			db.subscribe('server:emit');
+		}
+	});
+		
+	server = new Server('localhost', 27017, {auto_reconnect: true});
+	mongo = new Db('ml', server);
+
+
 
 	socket.on('interval', function (message) {
 		stop = message.stop;
@@ -48,7 +65,6 @@ io.sockets.on('connection', function (socket) {
 					collection.find(query ,{'sort':[['time',1]]}).toArray(function(err, items) {
 						var data = [];
 						var net = 0;
-						console.log(items.length);
 						for(var i = items.length - 1; i > 0; i--) {
 							data[i] = items[i].data.positive.rate - items[i].data.negative.rate;
 							net += data[i];
